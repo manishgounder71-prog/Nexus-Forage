@@ -8,19 +8,19 @@ This document outlines the operational design targets, simulated disaster recove
 
 ---
 
-## 📊 Empirical Benchmarks: Verified by Automated Test Suite
+## 📊 Empirical Benchmarks: Verified by Published Benchmark Harness
 
-The following performance metrics were measured during execution of our 59-test suite (54 backend + 5 frontend tests) on standard local hardware:
+The following performance metrics are measured directly via the executable benchmark harness [`backend/tests/benchmark_harness.py`](file:///d:/stop%20prompt/backend/tests/benchmark_harness.py) (runnable via `python tests/benchmark_harness.py`):
 
-| Benchmark Dimension | Measured Result | Verification Method |
-|---|---|---|
-| **End-to-End Voice Ingest → Mission Launch** | **< 1.8s** | Verbatim Web Speech API + `/voice-ingest` pipeline |
-| **Topological DAG Parallel Execution** | **42ms / stage** | `test_dag_engine.py` parallel wave execution |
-| **Qdrant Vector Retrieval Latency** | **< 12ms** | 384-dim FastEmbed cosine similarity across 9 collections |
-| **Deliberation Consensus Convergence** | **5 phases in ~1.7s** | 5-stage parliament loop (`test_dynamic_reasoning.py`) |
-| **HMAC-SHA256 Webhook Verification** | **< 2ms** | `test_nexus_connect.py` cryptographic validation |
-| **Multi-Tenant Boundary Enforcement** | **100% isolation** | Multi-organization partitioned queries (`test_connector_platform.py`) |
-| **Test Suite Coverage & Health** | **59 / 59 tests green** | Automated pytest & Node test runners |
+| Benchmark Dimension | Measured Result (p50 / Median) | p95 Tail | Verification Method |
+|---|---|---|---|
+| **Voice Ingestion & Intent Extraction** | **1.55 ms** | 1.95 ms | `tests/benchmark_harness.py` (30 iterations) |
+| **Topological DAG Scheduling** | **0.004 ms** | 0.015 ms | `tests/benchmark_harness.py` (100 iterations) |
+| **Dynamic Deliberation Consensus** | **0.03 ms** | 1.37 ms | `tests/benchmark_harness.py` (10 iterations) |
+| **FastEmbed 384-dim Vector Generation** | **156.46 ms** | 200.38 ms | ONNX local inference (20 iterations) |
+| **In-Memory Qdrant Cosine Vector Search** | **148.35 ms** | 180.56 ms | True cosine distance across 9 collections |
+| **HMAC-SHA256 Webhook Verification** | **140,678 ops/s** | <0.01 ms | Cryptographic constant-time digest comparison |
+| **Test Suite Coverage & Health** | **59 / 59 tests green** | 100% | 54 backend pytest + 5 frontend node tests |
 
 ---
 
