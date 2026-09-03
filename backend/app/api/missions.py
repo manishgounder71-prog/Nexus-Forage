@@ -1,7 +1,7 @@
 import uuid
 import asyncio
 import datetime
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Depends, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.schemas.mission_schemas import MissionCreateRequest, MissionResponse

@@ -1,6 +1,7 @@
 import logging
 import uuid
 import datetime
+import hashlib
 import httpx
 from typing import Dict, Any, Optional, List
 from app.core.config import settings
