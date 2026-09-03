@@ -1,0 +1,15 @@
+# Environment secrets
+.env
+.env.local
+*.env
+
+# Python bytecode & cache
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Databases & local state
+*.db
+*.sqlite3
+nexus_forge.db

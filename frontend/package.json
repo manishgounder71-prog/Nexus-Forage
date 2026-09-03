@@ -1,0 +1,12 @@
+{
+  "name": "nexus-forge-frontend",
+  "version": "3.0.0",
+  "description": "NEXUS FORGE Autonomous Crisis Command Frontend Dashboard",
+  "scripts": {
+    "test": "node --test tests/frontend.test.js",
+    "start": "python -m http.server 5500"
+  },
+  "keywords": ["crisis-command", "lyzr", "qdrant", "omi", "multi-agent"],
+  "author": "NEXUS Core Team",
+  "license": "MIT"
+}

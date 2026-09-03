@@ -1,0 +1,1063 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NEXUS FORGE — Adaptive AI Command Center</title>
+  <meta name="description" content="One mission. The right AI organization. Autonomous multi-agent decision and operations platform.">
+  
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+
+  <!-- Google Fonts: Outfit (Display), Inter (Body), JetBrains Mono (Telemetry/Code) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;0,700;1,400&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Main Stylesheet -->
+  <link rel="stylesheet" href="css/styles.css?v=20260903_1144">
+</head>
+<body class="nexus-app dark-theme">
+  <!-- Ambient Audio Indicator & Controls -->
+  <div class="audio-hud-control">
+    <button id="audio-toggle" class="audio-btn" title="Toggle System Sound FX">
+      <i class="fa-solid fa-volume-high"></i>
+    </button>
+  </div>
+
+  <!-- Top Navigation Header -->
+  <header class="nexus-header">
+    <div class="brand-container">
+      <div class="brand-logo">
+        <div class="logo-core-dot"></div>
+        <div class="logo-ring"></div>
+      </div>
+      <div class="brand-text">
+        <span class="brand-name">NEXUS FORGE</span>
+        <span class="brand-tagline">ADAPTIVE AI COMMAND CENTER</span>
+      </div>
+    </div>
+
+    <!-- Main Navigation Bar -->
+    <nav class="nexus-nav">
+      <button class="nav-item active" data-view="command-center">
+        <i class="fa-solid fa-compass"></i>
+        <span>Command Center</span>
+      </button>
+      <button class="nav-item" data-view="live-mission">
+        <i class="fa-solid fa-diagram-project"></i>
+        <span>Live Mission</span>
+        <span class="badge live-badge">LIVE</span>
+      </button>
+      <button class="nav-item" data-view="ai-organization">
+        <i class="fa-solid fa-users-gear"></i>
+        <span>AI Organization</span>
+      </button>
+      <button class="nav-item" data-view="agent-parliament">
+        <i class="fa-solid fa-gavel"></i>
+        <span>Parliament</span>
+      </button>
+      <button class="nav-item" data-view="red-team">
+        <i class="fa-solid fa-shield-halved"></i>
+        <span>Red Team</span>
+      </button>
+      <button class="nav-item" data-view="simulation-engine">
+        <i class="fa-solid fa-chart-network"></i>
+        <span>Simulation</span>
+      </button>
+      <button class="nav-item" data-view="memory-intelligence">
+        <i class="fa-solid fa-brain"></i>
+        <span>Memory</span>
+      </button>
+      <button class="nav-item" data-view="org-evolution">
+        <i class="fa-solid fa-dna"></i>
+        <span>Evolution</span>
+      </button>
+      <button class="nav-item" data-view="connector-center">
+        <i class="fa-solid fa-plug-circle-bolt"></i>
+        <span>Connectors</span>
+        <span class="badge live-badge">OPS</span>
+      </button>
+    </nav>
+
+    <!-- Header Tech Stack Pills + Telemetry -->
+    <div class="header-telemetry" style="display:flex; align-items:center; gap:10px;">
+
+      <!-- Tech Stack Badges -->
+      <div style="display:flex; align-items:center; gap:6px; padding-right:10px; border-right:1px solid var(--border-glass);">
+        <span title="Omi Voice Device — Crisis Voice Input" style="display:flex;align-items:center;gap:5px;background:rgba(236,72,153,0.12);border:1px solid rgba(236,72,153,0.35);padding:3px 10px;border-radius:20px;font-size:0.68rem;font-family:var(--font-mono);font-weight:700;color:#ec4899;">
+          <i class="fa-solid fa-microphone"></i> OMI
+        </span>
+        <span title="Lyzr — AI Agent Orchestration" style="display:flex;align-items:center;gap:5px;background:rgba(139,92,246,0.12);border:1px solid rgba(139,92,246,0.35);padding:3px 10px;border-radius:20px;font-size:0.68rem;font-family:var(--font-mono);font-weight:700;color:#a78bfa;">
+          <i class="fa-solid fa-robot"></i> LYZR
+        </span>
+        <span title="Qdrant — Vector Memory Database" style="display:flex;align-items:center;gap:5px;background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.35);padding:3px 10px;border-radius:20px;font-size:0.68rem;font-family:var(--font-mono);font-weight:700;color:#10b981;">
+          <i class="fa-solid fa-database"></i> QDRANT
+        </span>
+      </div>
+
+      <div class="system-status">
+        <span class="status-indicator active"></span>
+        <span class="status-label">STATUS: <strong id="sys-state-text">READY</strong></span>
+      </div>
+      <div class="qdrant-status" title="Qdrant Vector Memory — embeddings indexed">
+        <i class="fa-solid fa-database"></i>
+        <span>QDRANT: <span id="qdrant-vectors-count">14,290</span> VECS</span>
+      </div>
+
+      <!-- Live Telemetry HUD -->
+      <div id="telemetry-latency" class="telemetry-pill-hud" title="Real-time Pipeline Latency">
+        <i class="fa-solid fa-bolt" style="color:#f59e0b;"></i>
+        <span id="telemetry-latency-val">28ms</span>
+      </div>
+      <div id="telemetry-consensus" class="telemetry-pill-hud" title="Swarm Consensus Index">
+        <i class="fa-solid fa-scale-balanced" style="color:#10b981;"></i>
+        <span id="telemetry-consensus-val">95.4%</span>
+      </div>
+
+      <!-- Action Buttons -->
+      <button id="export-dossier-btn" class="header-hud-action-btn" title="Export Comprehensive Crisis Incident Dossier">
+        <i class="fa-solid fa-file-export"></i>
+        <span>Export Dossier</span>
+      </button>
+
+      <button id="kbd-legend-btn" class="header-hud-action-btn icon-btn" title="Keyboard Shortcuts Guide (?)">
+        <i class="fa-solid fa-keyboard"></i>
+      </button>
+    </div>
+
+  </header>
+
+  <!-- Autopilot Dynamic HUD Banner (Visible during demo sequence) -->
+  <div id="autopilot-hud-banner" class="autopilot-hud-banner" style="display:none;">
+    <div class="hud-top-row">
+      <div class="hud-stage-info">
+        <span class="hud-badge" id="hud-stage-badge">STAGE 1/8</span>
+        <span class="hud-stage-title" id="hud-stage-title">🎙️ Omi Ambient Voice Ingestion & Intent Extraction</span>
+      </div>
+      <div class="hud-controls-group">
+        <span class="hud-speed-pill" data-speed="1.0">1x</span>
+        <span class="hud-speed-pill active" data-speed="1.5">1.5x</span>
+        <span class="hud-speed-pill" data-speed="2.0">2x Fast</span>
+        <button class="hud-btn" id="hud-pause-btn" title="Pause / Resume Demo"><i class="fa-solid fa-pause"></i></button>
+        <button class="hud-btn" id="hud-next-btn" title="Skip to Next Stage"><i class="fa-solid fa-forward-step"></i> Next</button>
+        <button class="hud-btn stop" id="hud-stop-btn" title="Stop Demo"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+    </div>
+    <div class="hud-progress-track">
+      <div class="hud-progress-fill" id="hud-progress-fill"></div>
+    </div>
+  </div>
+
+  <!-- Main View Container -->
+  <main class="nexus-main-viewport">
+
+    <!-- ==================== 1. COMMAND CENTER ==================== -->
+    <section id="view-command-center" class="nexus-view active-view">
+      <div class="command-grid">
+        
+        <!-- Left Telemetry Panel -->
+        <aside class="telemetry-panel left-panel">
+          <div class="panel-header">
+            <h3><i class="fa-solid fa-microchip"></i> System Status</h3>
+            <span class="pulse-indicator"></span>
+          </div>
+          
+          <div class="telemetry-metrics">
+            <div class="metric-card">
+              <span class="metric-title">Active AI Agents</span>
+              <span class="metric-value" id="telemetry-agents-count">6 Agents</span>
+              <span class="metric-sub">AI Team Working in Parallel</span>
+            </div>
+            
+            <div class="metric-card">
+              <span class="metric-title">Memory Search Speed</span>
+              <span class="metric-value">1.4ms</span>
+              <span class="metric-sub">Smart Search Database</span>
+            </div>
+
+            <div class="metric-card">
+              <span class="metric-title">Team Agreement Level</span>
+              <span class="metric-value" id="telemetry-consensus">94.8%</span>
+              <div class="metric-progress-bar">
+                <div class="progress-fill" style="width: 94.8%;"></div>
+              </div>
+            </div>
+
+            <div class="metric-card">
+              <span class="metric-title">AI Processing Speed</span>
+              <span class="metric-value">284 t/s</span>
+              <span class="metric-sub">All AI Agents Running Simultaneously</span>
+            </div>
+          </div>
+
+          <!-- Active Mission Quick Status & Adaptive Domain Profile -->
+          <div class="current-mission-box" id="cmd-mission-profile-box">
+            <div class="box-label"><i class="fa-solid fa-atom"></i> ADAPTIVE MISSION PROFILE</div>
+            <div class="mission-name" id="cmd-active-mission-name">No active mission detected. System idle.</div>
+            <div style="display:flex; align-items:center; gap:8px; margin-top:8px; flex-wrap:wrap;">
+              <span class="mission-status-pill" id="cmd-mission-status-pill">STATUS: STANDBY</span>
+              <span id="cmd-domain-badge" style="display:none; font-family:var(--font-mono); font-size:0.65rem; font-weight:700; background:rgba(139,92,246,0.15); border:1px solid rgba(139,92,246,0.4); color:var(--primary-bright); padding:2px 8px; border-radius:12px;">DOMAIN: NONE</span>
+              <span id="cmd-confidence-badge" style="display:none; font-family:var(--font-mono); font-size:0.65rem; font-weight:700; background:rgba(16,185,129,0.15); border:1px solid rgba(16,185,129,0.4); color:var(--color-success); padding:2px 8px; border-radius:12px;">CONF: 95%</span>
+            </div>
+            <!-- Extracted Capabilities Chips Matrix -->
+            <div id="cmd-capabilities-container" style="display:none; margin-top:10px; padding-top:8px; border-top:1px solid var(--border-glass);">
+              <div style="font-size:0.65rem; font-family:var(--font-mono); color:var(--text-subtle); margin-bottom:5px;">REQUIRED CAPABILITIES:</div>
+              <div id="cmd-capabilities-chips" style="display:flex; flex-wrap:wrap; gap:4px;"></div>
+            </div>
+          </div>
+
+          <!-- Executive Mission Report Card (Stage 10 Blueprint) -->
+          <div class="executive-report-card" id="executive-report-box" style="display:none; background:rgba(16, 185, 129, 0.08); border:1px solid rgba(16, 185, 129, 0.3); padding:14px; border-radius:var(--radius-md); font-size:0.75rem;">
+            <div style="font-family:var(--font-display); font-weight:700; color:var(--color-success); font-size:0.88rem; margin-bottom:6px;">🚨 EXECUTIVE MISSION REPORT</div>
+            <div id="exec-report-body" style="line-height:1.4; color:var(--text-main);"></div>
+          </div>
+        </aside>
+
+        <!-- Center Nexus Core Visualization -->
+        <div class="nexus-core-stage">
+          <div class="core-canvas-container">
+            <canvas id="nexus-core-canvas"></canvas>
+            <div class="core-overlay-labels">
+              <div class="core-headline">NEXUS FORGE</div>
+              <div class="core-subtext" id="core-state-subtext">One Mission. The Right AI Organization.</div>
+            </div>
+          </div>
+
+          <!-- Modular Mission Library & Preset Scenarios -->
+          <div class="preset-scenarios-container">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+              <span class="preset-label" style="margin-bottom:0;"><i class="fa-solid fa-layer-group" style="color:var(--primary);"></i> MISSION LIBRARY (5 REAL-WORLD DOMAIN PACKS):</span>
+              <span style="font-size:0.68rem; color:var(--text-muted); font-family:var(--font-mono);">CLICK SCENARIO TO AUTO-ADAPT AI TEAM</span>
+            </div>
+            <div class="preset-buttons" style="display:flex; flex-wrap:wrap; gap:8px;">
+              <button class="preset-btn" data-scenario="software-incident" title="SOFTWARE INCIDENT RESPONSE">
+                <i class="fa-solid fa-code"></i>
+                <span>💻 Production Deployment Incident</span>
+              </button>
+              <button class="preset-btn" data-scenario="payment-platform" title="ENTERPRISE CRISIS MANAGEMENT">
+                <i class="fa-solid fa-credit-card"></i>
+                <span>🚨 Payment Platform Failure</span>
+              </button>
+              <button class="preset-btn" data-scenario="exam-failure" title="UNIVERSITY OPERATIONS">
+                <i class="fa-solid fa-graduation-cap"></i>
+                <span>🎓 Examination Portal Crisis</span>
+              </button>
+              <button class="preset-btn" data-scenario="supply-chain" title="SUPPLY CHAIN DISRUPTION">
+                <i class="fa-solid fa-truck-fast"></i>
+                <span>🚚 Supply Chain Disruption</span>
+              </button>
+              <button class="preset-btn" data-scenario="startup-runway" title="STARTUP STRATEGY">
+                <i class="fa-solid fa-rocket"></i>
+                <span>🚀 Startup Runway Decision</span>
+              </button>
+              <button class="preset-btn" id="cmd-autopilot-btn" style="background:linear-gradient(135deg,rgba(236,72,153,0.25),rgba(139,92,246,0.25));border-color:rgba(236,72,153,0.5);color:#f472b6;">
+                <i class="fa-solid fa-bolt-auto"></i>
+                <span>⚡ 8-STAGE AUTOPILOT DEMO</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Voice & Text Command Interface -->
+          <div class="voice-command-wrapper">
+            <div class="voice-waveform-display" id="voice-waveform">
+              <div class="wave-bar"></div>
+              <div class="wave-bar"></div>
+              <div class="wave-bar"></div>
+              <div class="wave-bar"></div>
+              <div class="wave-bar"></div>
+              <div class="wave-bar"></div>
+              <div class="wave-bar"></div>
+              <div class="wave-bar"></div>
+            </div>
+
+            <div class="voice-input-bar">
+              <button id="voice-mic-btn" class="mic-trigger-btn">
+                <i class="fa-solid fa-microphone"></i>
+                <div class="mic-pulse-ring"></div>
+              </button>
+              <div class="voice-prompt-area">
+                <input type="text" id="crisis-prompt-input" placeholder="Hold button to speak or type crisis scenario here...">
+              </div>
+              <button id="execute-crisis-btn" class="submit-crisis-btn">
+                <span>RESPOND</span>
+                <i class="fa-solid fa-arrow-right"></i>
+              </button>
+            </div>
+            
+            <div class="voice-transcript-log" id="voice-transcript-output">
+              <span class="system-prompt-guide">“Speak the crisis. Watch an AI organization respond.”</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right System Activity Stream -->
+        <aside class="telemetry-panel right-panel">
+          <div class="panel-header">
+            <h3><i class="fa-solid fa-stream"></i> Live Activity Feed</h3>
+            <span class="live-pulse">● LIVE</span>
+          </div>
+
+          <div class="stream-feed" id="org-stream-feed">
+            <div class="feed-item">
+              <span class="feed-time">21:47:00</span>
+              <span class="feed-tag info">SYSTEM</span>
+              <p class="feed-text">NEXUS Core started. 6 AI agents loaded and ready.</p>
+            </div>
+            <div class="feed-item">
+              <span class="feed-time">21:47:02</span>
+              <span class="feed-tag memory">QDRANT</span>
+              <p class="feed-text">Loaded 14,290 past crisis records into memory database.</p>
+            </div>
+          </div>
+        </aside>
+
+      </div>
+    </section>
+
+    <!-- ==================== 2. LIVE MISSION SCREEN & DAG ==================== -->
+    <section id="view-live-mission" class="nexus-view">
+      <div class="live-mission-container">
+        
+        <!-- Mission Top Control Bar — Premium Cyber Command Interface -->
+        <div class="mission-topbar">
+          <div class="mission-title-box">
+            <!-- Threat pulse indicator -->
+            <div class="threat-pulse-row">
+              <span class="threat-pulse-dot"></span>
+              <span class="threat-pulse-label">LIVE THREAT ACTIVE</span>
+              <span class="threat-separator">|</span>
+              <span class="threat-classification">CLASSIFICATION: CRITICAL INFRASTRUCTURE</span>
+            </div>
+            <h2 id="live-mission-heading">MISSION: Metropolitan Power Grid Cyber-Attack (Substations 04 & 09)</h2>
+            <div class="mission-meta-row">
+              <span class="mission-tag critical" id="live-mission-urgency">⚠ CRITICAL • SCADA EXPLOIT ACTIVE</span>
+              <span class="mission-meta-chip"><i class="fa-solid fa-bolt"></i> SUBSTATIONS 04 & 09</span>
+              <span class="mission-meta-chip"><i class="fa-solid fa-tower-broadcast"></i> DNP3/MODBUS BREACH</span>
+              <span class="mission-meta-chip mission-timer-chip"><i class="fa-solid fa-clock"></i> BREACH: <span id="mission-breach-timer">00:00:00</span></span>
+            </div>
+          </div>
+
+          <div class="dag-controls">
+            <button class="dag-btn" id="dag-zoom-in" title="Zoom In"><i class="fa-solid fa-plus"></i></button>
+            <button class="dag-btn" id="dag-zoom-out" title="Zoom Out"><i class="fa-solid fa-minus"></i></button>
+            <button class="dag-btn" id="dag-reset" title="Reset View"><i class="fa-solid fa-expand"></i></button>
+            <div class="legend-group">
+              <span class="legend-item"><span class="node-dot pending"></span> Pending</span>
+              <span class="legend-item"><span class="node-dot running"></span> Active</span>
+              <span class="legend-item"><span class="node-dot success"></span> Resolved</span>
+              <span class="legend-item"><span class="node-dot debate"></span> In Debate</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- DAG Canvas Stage -->
+        <div class="dag-viewport">
+          <canvas id="dag-canvas"></canvas>
+
+          <!-- Interactive Node Inspector Drawer -->
+          <div class="node-inspector-drawer" id="node-inspector">
+            <button class="drawer-close" id="inspector-close"><i class="fa-solid fa-xmark"></i></button>
+            <div class="inspector-header">
+              <span class="inspector-badge" id="insp-badge">RUNNING</span>
+              <h3 id="insp-title">INCIDENT_ANALYSIS_01</h3>
+            </div>
+            <div class="inspector-body">
+              <div class="insp-row">
+                <span class="insp-label">Assigned Agent:</span>
+                <span class="insp-val" id="insp-agent">Incident Analyst Agent</span>
+              </div>
+              <div class="insp-row">
+                <span class="insp-label">Execution Time:</span>
+                <span class="insp-val" id="insp-time">1.2s</span>
+              </div>
+              <div class="insp-row">
+                <span class="insp-label">Confidence Score:</span>
+                <span class="insp-val" id="insp-confidence">96.4%</span>
+              </div>
+              <div class="insp-section">
+                <h4>AI Agent Findings</h4>
+                <pre class="telemetry-code" id="insp-reasoning">Root cause found: Database connection limit reached during peak login. System overloaded at 04:00 UTC.</pre>
+              </div>
+              <div class="insp-section">
+                <h4>Past Records Referenced</h4>
+                <div class="memory-pill-list" id="insp-memories">
+                  <span class="mem-pill"><i class="fa-solid fa-memory"></i> Record #8492 (Exam Database Crash 2024)</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ==================== 3. AI ORGANIZATION VIEW ==================== -->
+    <section id="view-ai-organization" class="nexus-view">
+      <div class="org-container">
+        
+        <div class="section-title-bar" style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:12px;">
+          <div>
+            <h2><i class="fa-solid fa-sitemap" style="color:var(--primary-bright); margin-right:8px;"></i> ADAPTIVE AI ORGANIZATION (LYZR SOLO AGENTS)</h2>
+            <p>Dynamic AI team formation: The system automatically recruits, scores, and structures specialized agent divisions from a 28-agent talent pool specifically tailored to the active incident.</p>
+          </div>
+          <div id="org-active-swarm-badge" style="background:rgba(59,130,246,0.12); border:1px solid rgba(59,130,246,0.35); padding:6px 12px; border-radius:8px; font-family:var(--font-mono); font-size:0.75rem; color:#60a5fa; display:flex; align-items:center; gap:6px;">
+            <i class="fa-solid fa-bolt-lightning" style="color:#fbbf24;"></i> <span id="org-active-scenario-name">ACTIVE SCENARIO: PRODUCTION INCIDENT</span>
+          </div>
+        </div>
+
+        <!-- Filter bar for Organization view -->
+        <div class="org-filter-bar" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin: 12px 0 16px 0; background:rgba(20,24,40,0.6); padding:8px 12px; border-radius:10px; border:1px solid var(--border-glass);">
+          <div style="display:flex; gap:8px; align-items:center;">
+            <span style="font-size:0.75rem; color:var(--text-muted); font-family:var(--font-mono); margin-right:4px;">VIEW MODE:</span>
+            <button class="org-mode-btn active" id="org-filter-deployed" style="padding:4px 10px; font-size:0.72rem; border-radius:6px; border:1px solid var(--primary); background:rgba(139,92,246,0.2); color:#fff; cursor:pointer; font-weight:600;">
+              <i class="fa-solid fa-bullseye" style="color:#34d399; margin-right:4px;"></i> 🎯 Deployed Mission Swarm
+            </button>
+            <button class="org-mode-btn" id="org-filter-all" style="padding:4px 10px; font-size:0.72rem; border-radius:6px; border:1px solid var(--border-glass); background:rgba(255,255,255,0.04); color:var(--text-muted); cursor:pointer; font-weight:600;">
+              <i class="fa-solid fa-globe" style="margin-right:4px;"></i> 🌐 All 28 Lyzr Solo Agents
+            </button>
+          </div>
+          <div style="font-size:0.72rem; color:var(--text-muted); font-family:var(--font-mono);">
+            <i class="fa-solid fa-microchip" style="color:var(--primary-bright); margin-right:4px;"></i> FRAMEWORK: <span style="color:#fff;">Lyzr Automata SDK v3</span>
+          </div>
+        </div>
+
+        <!-- Organization-level summary metrics -->
+        <div class="org-summary-grid" id="org-summary-container" style="display:none;">
+          <div class="org-summary-card">
+            <span class="org-summary-icon"><i class="fa-solid fa-sitemap"></i></span>
+            <div>
+              <div class="org-summary-label">DIVISIONS</div>
+              <div class="org-summary-value" id="org-metric-divisions">0</div>
+            </div>
+          </div>
+          <div class="org-summary-card">
+            <span class="org-summary-icon"><i class="fa-solid fa-robot"></i></span>
+            <div>
+              <div class="org-summary-label">ACTIVE AGENTS</div>
+              <div class="org-summary-value" id="org-metric-agents">0</div>
+            </div>
+          </div>
+          <div class="org-summary-card">
+            <span class="org-summary-icon"><i class="fa-solid fa-shield-halved"></i></span>
+            <div>
+              <div class="org-summary-label">AVG REPUTATION</div>
+              <div class="org-summary-value" id="org-metric-reputation">0%</div>
+            </div>
+          </div>
+          <div class="org-summary-card">
+            <span class="org-summary-icon"><i class="fa-solid fa-gauge-high"></i></span>
+            <div>
+              <div class="org-summary-label">AVG RESPONSE SPEED</div>
+              <div class="org-summary-value" id="org-metric-speed">0%</div>
+            </div>
+          </div>
+          <div class="org-summary-card">
+            <span class="org-summary-icon"><i class="fa-solid fa-heart-circle-check"></i></span>
+            <div>
+              <div class="org-summary-label">READINESS</div>
+              <div class="org-summary-value readiness" id="org-metric-readiness">0%</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="divisions-grid" id="divisions-container">
+          <!-- Divisions and Agent Cards injected by JavaScript -->
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ==================== 4. AGENT PARLIAMENT ==================== -->
+    <section id="view-agent-parliament" class="nexus-view">
+      <div class="parliament-container">
+        
+        <div class="section-title-bar">
+          <h2>AI TEAM DEBATE ROOM</h2>
+          <p>Where AI agents discuss, challenge and vote on the best response strategy</p>
+        </div>
+
+        <div class="parliament-stage">
+          
+<!-- Central Motion Card -->
+      <div class="motion-card">
+        <span class="motion-badge">CURRENT QUESTION</span>
+        <h3 id="parliament-motion-text">“Which response strategy should be executed for the Metropolitan Power Grid Cyber-Attack (Substations 04 & 09)?”</h3>
+        
+        <div class="debate-phase-stepper">
+          <div class="step-item completed" id="phase-1"><span>01</span> Evidence</div>
+          <div class="step-item active" id="phase-2"><span>02</span> Challenge</div>
+          <div class="step-item" id="phase-3"><span>03</span> Counter-Point</div>
+          <div class="step-item" id="phase-4"><span>04</span> Refinement</div>
+          <div class="step-item" id="phase-5"><span>05</span> Final Vote</div>
+        </div>
+
+        <!-- Consensus Progress -->
+        <div class="consensus-progress-wrap" id="parliament-consensus-progress">
+          <div class="consensus-progress-head">
+            <span class="consensus-progress-label">AGREEMENT GAUGE</span>
+            <span class="consensus-progress-target" id="parliament-consensus-target">TARGET 94%</span>
+          </div>
+          <div class="consensus-progress-track">
+            <div class="consensus-progress-fill" id="parliament-consensus-fill" style="width:0%;"></div>
+          </div>
+          <div class="consensus-progress-foot">
+            <span id="parliament-consensus-current">0% AGREEMENT</span>
+            <span id="parliament-consensus-status" class="consensus-progress-status">DELIBERATING</span>
+          </div>
+        </div>
+
+        <!-- Consensus Assertion Panel -->
+        <div class="consensus-assertion" id="parliament-consensus-assertion" style="display:none;">
+          <div class="assertion-head">
+            <i class="fa-solid fa-landmark"></i>
+            <span id="parliament-assertion-title">PARLIAMENT CONSENSUS REACHED</span>
+          </div>
+          <div class="assertion-strategy" id="parliament-assertion-strategy">—</div>
+          <div class="assertion-reasoning" id="parliament-assertion-reasoning"></div>
+          <div class="assertion-split" id="parliament-assertion-split"></div>
+        </div>
+      </div>
+
+          <!-- Spatial Deliberation Ring -->
+          <div class="spatial-arena" id="spatial-parliament-arena">
+            <!-- Agent Parliament Nodes injected by JS -->
+          </div>
+
+          <!-- Strategy Comparison Matrix (Why Plan B Won) -->
+          <div class="parliament-strategy-matrix-card">
+            <div class="panel-header">
+              <h3><i class="fa-solid fa-scale-balanced"></i> Strategy Comparison (Why Plan B Won)</h3>
+              <span class="matrix-status-badge"><i class="fa-solid fa-check-double"></i> PARLIAMENT CONSENSUS MATRIX</span>
+            </div>
+            <div class="strategy-table-wrapper" id="parliament-strategy-table-container">
+              <!-- Strategy Table dynamically populated by JavaScript -->
+            </div>
+          </div>
+
+          <!-- Debate Log Stream -->
+          <div class="parliament-log-box">
+            <div class="panel-header">
+              <h3><i class="fa-solid fa-comments"></i> Debate Log & Evidence</h3>
+              <span class="consensus-badge" id="parliament-consensus-pill">AGREEMENT: PENDING (94% TARGET)</span>
+            </div>
+            <div class="debate-messages" id="parliament-messages">
+              <!-- Deliberation messages injected by JS -->
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ==================== 5. RED TEAM CHALLENGE ==================== -->
+    <section id="view-red-team" class="nexus-view">
+      <div class="redteam-container">
+        
+        <div class="section-title-bar" style="display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:12px;">
+          <div>
+            <h2><i class="fa-solid fa-shield-cat"></i> RED TEAM — PLAN STRESS TEST & HARDENING</h2>
+            <p>Autonomous challenger AI stress-tests response strategies, injects failure vectors, and evolves Plan A into reinforced Plan B</p>
+          </div>
+          <div style="display:flex; align-items:center; gap:10px;">
+            <span class="redteam-status-pill"><i class="fa-solid fa-skull-crossbones"></i> AUDITOR ACTIVE: LYZR RED-TEAM</span>
+            <button id="run-redteam-attack-btn" class="redteam-action-btn">
+              <i class="fa-solid fa-bolt-lightning"></i>
+              <span>INJECT ADVERSARIAL STRESS TEST</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 1. Red Team Benchmark Metrics Cards -->
+        <div class="redteam-metrics-grid">
+          <div class="rt-metric-card">
+            <div class="rt-metric-header">
+              <span class="rt-metric-label">CASCADING FAILURE RISK</span>
+              <span class="rt-metric-badge good" id="rt-risk-badge">-88% RISK DROP</span>
+            </div>
+            <div class="rt-metric-comparison">
+              <div class="comp-col danger">
+                <span class="comp-tag">PLAN A</span>
+                <span class="comp-val" id="rt-risk-before">52%</span>
+              </div>
+              <div class="comp-arrow"><i class="fa-solid fa-arrow-right"></i></div>
+              <div class="comp-col success">
+                <span class="comp-tag">PLAN B</span>
+                <span class="comp-val" id="rt-risk-after">6%</span>
+              </div>
+            </div>
+            <div class="rt-progress-bar"><div class="rt-progress-fill risk" id="rt-risk-bar" style="width: 12%;"></div></div>
+          </div>
+
+          <div class="rt-metric-card">
+            <div class="rt-metric-header">
+              <span class="rt-metric-label">MEAN TIME TO RECOVER (RTO)</span>
+              <span class="rt-metric-badge good" id="rt-rto-badge">80% FASTER</span>
+            </div>
+            <div class="rt-metric-comparison">
+              <div class="comp-col danger">
+                <span class="comp-tag">PLAN A</span>
+                <span class="comp-val" id="rt-rto-before">180 min</span>
+              </div>
+              <div class="comp-arrow"><i class="fa-solid fa-arrow-right"></i></div>
+              <div class="comp-col success">
+                <span class="comp-tag">PLAN B</span>
+                <span class="comp-val" id="rt-rto-after">35 min</span>
+              </div>
+            </div>
+            <div class="rt-progress-bar"><div class="rt-progress-fill time" id="rt-rto-bar" style="width: 20%;"></div></div>
+          </div>
+
+          <div class="rt-metric-card">
+            <div class="rt-metric-header">
+              <span class="rt-metric-label">ATTACK RESILIENCE SCORE</span>
+              <span class="rt-metric-badge good" id="rt-resilience-badge">+152% HARDENED</span>
+            </div>
+            <div class="rt-metric-comparison">
+              <div class="comp-col danger">
+                <span class="comp-tag">PLAN A</span>
+                <span class="comp-val" id="rt-resilience-before">38/100</span>
+              </div>
+              <div class="comp-arrow"><i class="fa-solid fa-arrow-right"></i></div>
+              <div class="comp-col success">
+                <span class="comp-tag">PLAN B</span>
+                <span class="comp-val" id="rt-resilience-after">96/100</span>
+              </div>
+            </div>
+            <div class="rt-progress-bar"><div class="rt-progress-fill resilience" id="rt-resilience-bar" style="width: 96%;"></div></div>
+          </div>
+
+          <div class="rt-metric-card">
+            <div class="rt-metric-header">
+              <span class="rt-metric-label">EXPOSURE & DOWNTIME LOSS</span>
+              <span class="rt-metric-badge good" id="rt-loss-badge">98% CAPITAL SAVED</span>
+            </div>
+            <div class="rt-metric-comparison">
+              <div class="comp-col danger">
+                <span class="comp-tag">PLAN A</span>
+                <span class="comp-val" id="rt-loss-before">$2.4M</span>
+              </div>
+              <div class="comp-arrow"><i class="fa-solid fa-arrow-right"></i></div>
+              <div class="comp-col success">
+                <span class="comp-tag">PLAN B</span>
+                <span class="comp-val" id="rt-loss-after">$45K</span>
+              </div>
+            </div>
+            <div class="rt-progress-bar"><div class="rt-progress-fill loss" id="rt-loss-bar" style="width: 5%;"></div></div>
+          </div>
+        </div>
+
+        <div class="redteam-grid">
+          
+          <!-- Attack Surface Analysis -->
+          <div class="rt-card attack-surface">
+            <div class="rt-card-header">
+              <h3><i class="fa-solid fa-crosshairs"></i> Exploited Attack Surface & Weakness Matrix</h3>
+              <span class="rt-counter-badge" id="rt-threat-count">3 VULNERABILITIES DETECTED</span>
+            </div>
+            <div class="vulnerability-list" id="vulnerability-list">
+              <!-- Dynamically populated by JavaScript -->
+            </div>
+          </div>
+
+          <!-- Strategy Evolution View -->
+          <div class="rt-card strategy-evolution">
+            <div class="rt-card-header">
+              <h3><i class="fa-solid fa-code-compare"></i> Strategy Hardening & Evolution Lifecycle</h3>
+              <span class="rt-counter-badge success">PLAN HARDENED (v2.0 REINFORCED)</span>
+            </div>
+            <div class="evolution-flow">
+              <!-- Dynamically populated by JavaScript -->
+            </div>
+          </div>
+
+        </div>
+
+        <!-- 3. Red Team Live Penetration Audit Stream -->
+        <div class="rt-audit-terminal-box">
+          <div class="rt-terminal-header">
+            <div class="rt-terminal-title">
+              <i class="fa-solid fa-terminal"></i>
+              <span>ADVERSARIAL STRESS TEST AUDIT STREAM</span>
+              <span class="rt-terminal-live-tag"><span class="rt-dot"></span> LIVE INGESTION</span>
+            </div>
+            <span style="font-size:0.7rem; color:#94a3b8; font-family:var(--font-mono);">AUDIT HASH: <strong style="color:#ec4899;">0x9A4F_RED_TEAM</strong></span>
+          </div>
+          <div class="rt-terminal-logs" id="redteam-terminal-feed">
+            <!-- Terminal logs injected by JS -->
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ==================== 6. SIMULATION ENGINE ==================== -->
+    <section id="view-simulation-engine" class="nexus-view">
+      <div class="sim-container">
+        
+        <div class="section-title-bar" style="display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:12px;">
+          <div>
+            <h2><i class="fa-solid fa-chart-line"></i> MONTE-CARLO STRATEGY SIMULATION ENGINE</h2>
+            <p>Runs 10,000 parallel stochastic simulated outcomes to calculate variance, tail risks, and optimal response paths</p>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+            <div class="sim-controls-group">
+              <span class="sim-ctrl-label">ITERATIONS:</span>
+              <div class="sim-pill-select" id="sim-iterations-pills">
+                <button class="sim-pill" data-iters="1000">1K</button>
+                <button class="sim-pill" data-iters="5000">5K</button>
+                <button class="sim-pill active" data-iters="10000">10K</button>
+                <button class="sim-pill" data-iters="50000">50K</button>
+              </div>
+            </div>
+
+            <div class="sim-controls-group">
+              <span class="sim-ctrl-label">STRESS:</span>
+              <div class="sim-pill-select" id="sim-stress-pills">
+                <button class="sim-pill active" data-stress="1.0">1.0x (Norm)</button>
+                <button class="sim-pill" data-stress="1.5">1.5x (Spike)</button>
+                <button class="sim-pill" data-stress="2.5">2.5x (BlackSwan)</button>
+              </div>
+            </div>
+
+            <button id="sim-run-btn" class="sim-action-btn">
+              <i class="fa-solid fa-play"></i>
+              <span>RUN 10,000x SIMULATION</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Real-Time Stochastic Distribution Canvas & Comparison Matrix -->
+        <div class="sim-visualizer-dashboard">
+          
+          <!-- Probability Density Curve Canvas -->
+          <div class="sim-chart-card">
+            <div class="sim-card-header">
+              <div style="display:flex; align-items:center; gap:8px;">
+                <i class="fa-solid fa-chart-area" style="color:var(--primary-bright);"></i>
+                <h4>Stochastic Outcome Probability Distribution (Bell Curves)</h4>
+              </div>
+              <div class="sim-chart-legend">
+                <span class="legend-item"><span class="legend-dot plan-a"></span> Plan A (Naive)</span>
+                <span class="legend-item"><span class="legend-dot plan-b"></span> Plan B (Reinforced Winner)</span>
+                <span class="legend-item"><span class="legend-dot plan-c"></span> Plan C (Buffer Alternative)</span>
+              </div>
+            </div>
+            
+            <div class="sim-canvas-wrapper">
+              <canvas id="sim-density-canvas" width="680" height="200"></canvas>
+            </div>
+            
+            <div class="sim-canvas-footer">
+              <div class="sim-stat-box">
+                <span class="stat-lbl">Plan B Expected Value</span>
+                <strong class="stat-val success" id="sim-planb-ev">94.4% Success</strong>
+              </div>
+              <div class="sim-stat-box">
+                <span class="stat-lbl">Variance (σ²)</span>
+                <strong class="stat-val" id="sim-variance">0.014 (Low Risk)</strong>
+              </div>
+              <div class="sim-stat-box">
+                <span class="stat-lbl">95% Confidence Interval</span>
+                <strong class="stat-val" id="sim-ci95">92.8% – 95.6%</strong>
+              </div>
+              <div class="sim-stat-box">
+                <span class="stat-lbl">Stochastic Winner</span>
+                <strong class="stat-val success" id="sim-winner-label">PLAN B (v2.0)</strong>
+              </div>
+            </div>
+          </div>
+
+          <!-- Multi-Dimensional Strategy Radar / Attribute Metrics -->
+          <div class="sim-radar-card">
+            <div class="sim-card-header">
+              <div style="display:flex; align-items:center; gap:8px;">
+                <i class="fa-solid fa-sliders" style="color:#10b981;"></i>
+                <h4>Multi-Attribute Trade-Off Comparison</h4>
+              </div>
+              <span class="matrix-status-badge"><i class="fa-solid fa-shield-halved"></i> 4 ATTRIBUTES</span>
+            </div>
+
+            <div class="sim-attribute-bars" id="sim-attribute-bars">
+              <!-- Dynamically populated by JavaScript -->
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Strategy Outcome Comparison Cards Grid -->
+        <div class="simulation-cards-grid" id="simulation-cards">
+          <!-- Simulation cards generated by JS -->
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ==================== 7. MEMORY INTELLIGENCE (QDRANT GALAXY) ==================== -->
+    <section id="view-memory-intelligence" class="nexus-view">
+      <div class="memory-container" style="display:flex; flex-direction:column; height:100%; gap:0; padding:0;">
+
+        <!-- Header + Controls Bar -->
+        <div style="padding:16px 24px 12px; border-bottom:1px solid var(--border-glass); flex-shrink:0;">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+            <div>
+              <h2 style="font-family:var(--font-display); font-size:1.1rem; font-weight:700; color:#fff; letter-spacing:0.08em;">
+                <i class="fa-solid fa-brain" style="color:var(--primary); margin-right:8px;"></i>
+                ORGANIZATIONAL MEMORY GALAXY <span style="color:var(--primary); font-size:0.8rem;">(QDRANT v3.0)</span>
+              </h2>
+              <p style="color:var(--text-muted); font-size:0.75rem; margin-top:3px;">Interactive 384-dim vector memory constellation — drag nodes, search, hover to inspect</p>
+            </div>
+            <!-- Live Stats Bar -->
+            <div style="display:flex; gap:12px;">
+              <div style="text-align:center; background:rgba(139,92,246,0.1); border:1px solid rgba(139,92,246,0.3); border-radius:10px; padding:6px 14px;">
+                <div id="mem-stat-total" style="font-family:var(--font-mono); font-size:1.1rem; font-weight:800; color:var(--primary);">8</div>
+                <div style="font-size:0.6rem; color:var(--text-subtle); font-family:var(--font-mono);">VECTORS</div>
+              </div>
+              <div style="text-align:center; background:rgba(16,185,129,0.1); border:1px solid rgba(16,185,129,0.3); border-radius:10px; padding:6px 14px;">
+                <div id="mem-stat-avg" style="font-family:var(--font-mono); font-size:1.1rem; font-weight:800; color:var(--color-success);">92.1%</div>
+                <div style="font-size:0.6rem; color:var(--text-subtle); font-family:var(--font-mono);">AVG SIM</div>
+              </div>
+              <div style="text-align:center; background:rgba(59,130,246,0.1); border:1px solid rgba(59,130,246,0.3); border-radius:10px; padding:6px 14px;">
+                <div style="font-family:var(--font-mono); font-size:1.1rem; font-weight:800; color:#3b82f6;">1.4ms</div>
+                <div style="font-size:0.6rem; color:var(--text-subtle); font-family:var(--font-mono);">HNSW QUERY</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Filter + Search Row -->
+          <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+            <span class="cat-pill active" data-cat="all">ALL</span>
+            <span class="cat-pill" data-cat="mission" style="--pill-color:#8b5cf6;">MISSION</span>
+            <span class="cat-pill" data-cat="decision" style="--pill-color:#10b981;">DECISION</span>
+            <span class="cat-pill" data-cat="failure" style="--pill-color:#ef4444;">FAILURE</span>
+            <span class="cat-pill" data-cat="dissent" style="--pill-color:#ec4899;">DISSENT</span>
+
+            <div style="margin-left:auto; display:flex; align-items:center; gap:8px; background:rgba(0,0,0,0.5); padding:6px 14px; border-radius:20px; border:1px solid var(--primary-glow);">
+              <i class="fa-solid fa-magnifying-glass" style="color:var(--primary-bright); font-size:0.72rem;"></i>
+              <input type="text" id="qdrant-memory-search" placeholder="Semantic search vector memory..." style="background:transparent; border:none; color:#fff; font-size:0.75rem; font-family:var(--font-mono); outline:none; width:210px;">
+            </div>
+            <button id="mem-add-node-btn" style="background:rgba(139,92,246,0.15); border:1px solid rgba(139,92,246,0.4); color:var(--primary-bright); font-size:0.72rem; font-family:var(--font-mono); padding:6px 12px; border-radius:20px; cursor:pointer; font-weight:700;">
+              <i class="fa-solid fa-plus"></i> ADD VECTOR
+            </button>
+          </div>
+        </div>
+
+        <!-- Main Galaxy Area: Canvas + Detail Panel side-by-side -->
+        <div style="display:flex; flex:1; overflow:hidden; gap:0;">
+
+          <!-- Canvas takes most space -->
+          <div style="flex:1; position:relative; overflow:hidden;">
+            <canvas id="memory-galaxy-canvas" style="width:100%; height:100%; display:block;"></canvas>
+
+            <!-- Floating Tooltip (HTML overlay) -->
+            <div id="mem-hover-tooltip" style="display:none; position:absolute; pointer-events:none; background:rgba(13,14,23,0.95); border:1px solid var(--primary-glow); border-radius:10px; padding:10px 14px; max-width:230px; backdrop-filter:blur(12px); z-index:200;">
+              <div id="mem-tt-title" style="font-weight:700; font-size:0.85rem; color:#fff; margin-bottom:4px;"></div>
+              <div id="mem-tt-id" style="font-family:var(--font-mono); font-size:0.65rem; color:var(--primary-bright); margin-bottom:6px;"></div>
+              <div id="mem-tt-payload" style="font-size:0.72rem; color:var(--text-muted); line-height:1.4;"></div>
+            </div>
+
+            <!-- Canvas Control Overlay -->
+            <div style="position:absolute; bottom:12px; left:50%; transform:translateX(-50%); display:flex; gap:8px;">
+              <button id="mem-zoom-in" style="background:rgba(0,0,0,0.65); border:1px solid var(--border-glass); color:#fff; width:32px; height:32px; border-radius:8px; cursor:pointer; font-size:1rem;">+</button>
+              <button id="mem-zoom-out" style="background:rgba(0,0,0,0.65); border:1px solid var(--border-glass); color:#fff; width:32px; height:32px; border-radius:8px; cursor:pointer; font-size:1rem;">−</button>
+              <button id="mem-reset" style="background:rgba(0,0,0,0.65); border:1px solid var(--border-glass); color:#fff; width:32px; height:32px; border-radius:8px; cursor:pointer; font-size:0.7rem; font-family:var(--font-mono);">RST</button>
+              <button id="mem-freeze" style="background:rgba(0,0,0,0.65); border:1px solid var(--border-glass); color:var(--color-warning); width:32px; height:32px; border-radius:8px; cursor:pointer; font-size:0.65rem; font-family:var(--font-mono);" title="Freeze constellation">❄</button>
+            </div>
+          </div>
+
+          <!-- Right Detail Panel -->
+          <div style="width:300px; flex-shrink:0; border-left:1px solid var(--border-glass); background:rgba(7,8,12,0.7); display:flex; flex-direction:column; overflow:hidden;">
+
+            <!-- Detail Card Header -->
+            <div style="padding:14px 16px 10px; border-bottom:1px solid var(--border-glass);">
+              <div style="font-family:var(--font-mono); font-size:0.65rem; color:var(--primary-bright); font-weight:700; margin-bottom:4px;">
+                <i class="fa-solid fa-database"></i> QDRANT VECTOR INSPECTOR
+              </div>
+              <div style="font-size:0.7rem; color:var(--text-subtle);">Click or hover any node in the galaxy</div>
+            </div>
+
+            <!-- Scrollable Detail Body -->
+            <div id="memory-detail-content" style="flex:1; overflow-y:auto; padding:14px 16px; font-size:0.78rem; color:var(--text-muted); line-height:1.5;">
+              <div style="text-align:center; padding:30px 0; color:var(--text-subtle);">
+                <i class="fa-solid fa-atom" style="font-size:2rem; color:rgba(139,92,246,0.4); margin-bottom:12px; display:block;"></i>
+                Select a memory node<br>to inspect its vector payload
+              </div>
+            </div>
+
+            <!-- Similarity Radar Bar -->
+            <div style="padding:12px 16px; border-top:1px solid var(--border-glass);">
+              <div style="font-family:var(--font-mono); font-size:0.62rem; color:var(--text-subtle); margin-bottom:8px;">TOP SIMILAR MEMORIES (HNSW KNN)</div>
+              <div id="mem-similarity-bars" style="display:flex; flex-direction:column; gap:5px;">
+                <div style="font-size:0.7rem; color:var(--text-subtle); text-align:center;">No node selected</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ==================== 8. ORGANIZATION EVOLUTION ==================== -->
+    <section id="view-org-evolution" class="nexus-view">
+      <div class="evolution-container">
+        
+        <div class="section-title-bar">
+          <h2>AI TEAM SELF-IMPROVEMENT</h2>
+          <p>The system detects slowdowns and automatically reorganizes the AI team to work faster</p>
+        </div>
+
+        <div class="evolution-showcase">
+          <div class="evo-card">
+            <h3><i class="fa-solid fa-triangle-exclamation"></i> Slowdown Detected</h3>
+            <div class="bottleneck-info">
+              <span class="bottleneck-target" id="bottleneck-target-text">SCADA Security → Grid Infrastructure Division</span>
+              <p id="bottleneck-desc-text">High dependency load on single SCADA Specialist caused a 380ms execution bottleneck during Substation 04 isolation.</p>
+            </div>
+          </div>
+
+          <div class="evo-card restructuring">
+            <h3><i class="fa-solid fa-diagram-nested"></i> Team Restructure — Before & After</h3>
+            <div class="topology-before-after">
+              <div class="topo-box">
+                <span class="topo-label">BEFORE (One at a Time)</span>
+                <code id="topo-before-code">SCADA Specialist → Grid Balancer</code>
+              </div>
+              <div class="topo-icon"><i class="fa-solid fa-arrow-right-long"></i></div>
+              <div class="topo-box upgraded">
+                <span class="topo-label">AFTER (Working in Parallel)</span>
+                <code id="topo-after-code">[SCADA A + SCADA B] → Key Validator → Grid Balancer</code>
+              </div>
+            </div>
+            <button class="evolve-btn" id="trigger-evolution-btn">
+              <i class="fa-solid fa-dna"></i>
+              <span>APPLY TEAM RESTRUCTURE</span>
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         CONNECTOR CENTER — Organization Connector Platform
+         ═══════════════════════════════════════════════════════════ -->
+    <section id="view-connector-center" class="nexus-view">
+      <div class="view-header">
+        <h1 class="view-title"><i class="fa-solid fa-plug-circle-bolt"></i> Organization Connector Center</h1>
+        <p class="view-subtitle">Ingest • Correlate • Escalate — the operational AI loop behind every NEXUS mission</p>
+      </div>
+
+      <!-- Command Row -->
+      <div class="cc-command-row">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <div class="cc-org-badge" id="cc-org-badge"><i class="fa-solid fa-building"></i> <span id="cc-org-name">ACME DIGITAL</span></div>
+          <select id="cc-org-select" class="cc-select" title="Switch Organization Workspace">
+            <option value="org_acme_digital">ACME DIGITAL</option>
+          </select>
+        </div>
+        <button class="cc-btn cc-btn-primary" id="cc-btn-onboard"><i class="fa-solid fa-plus"></i> NEW WORKSPACE</button>
+        <button class="cc-btn" id="cc-btn-endpoint"><i class="fa-solid fa-key"></i> INGESTION ENDPOINT</button>
+        <button class="cc-btn cc-btn-danger" id="cc-launch-demo"><i class="fa-solid fa-triangle-exclamation"></i> LAUNCH DEMO CRISIS</button>
+        <button class="cc-btn" id="cc-refresh"><i class="fa-solid fa-rotate"></i> REFRESH</button>
+        <span class="cc-conn-status" id="cc-ws-status"><i class="fa-solid fa-circle"></i> OFFLINE</span>
+      </div>
+
+      <!-- KPI Strip -->
+      <div class="cc-kpi-strip">
+        <div class="cc-kpi"><div class="cc-kpi-label">CONNECTORS</div><div class="cc-kpi-val" id="cc-kpi-connectors">–</div></div>
+        <div class="cc-kpi"><div class="cc-kpi-label">EVENTS</div><div class="cc-kpi-val" id="cc-kpi-events">–</div></div>
+        <div class="cc-kpi"><div class="cc-kpi-label">INCIDENTS</div><div class="cc-kpi-val" id="cc-kpi-incidents">–</div></div>
+        <div class="cc-kpi"><div class="cc-kpi-label">CRISES ACTIVE</div><div class="cc-kpi-val" id="cc-kpi-crises">–</div></div>
+        <div class="cc-kpi"><div class="cc-kpi-label">MISSIONS LAUNCHED</div><div class="cc-kpi-val" id="cc-kpi-missions">–</div></div>
+      </div>
+
+      <div class="cc-layout">
+        <!-- Left: Connectors + Catalog -->
+        <div class="cc-panel">
+          <div class="cc-panel-title"><i class="fa-solid fa-boxes-stacked"></i> Connected Systems</div>
+          <div class="cc-panel-sub">Registered connectors & their live status</div>
+          <div id="cc-connector-list" class="cc-connector-list"><div class="cc-empty">Loading connectors…</div></div>
+
+          <div class="cc-panel-title cc-panel-title-spaced"><i class="fa-solid fa-box"></i> Available Catalog</div>
+          <div id="cc-catalog-list" class="cc-catalog-list"></div>
+        </div>
+
+        <!-- Center: Incident command center + Human Approvals -->
+        <div class="cc-panel">
+          <div class="cc-panel-title"><i class="fa-solid fa-triangle-exclamation"></i> Incident Command Center</div>
+          <div class="cc-panel-sub">Correlated incidents & crisis-grade escalations</div>
+          <div id="cc-incident-list" class="cc-incident-list"><div class="cc-empty">No incidents yet. Launch the demo crisis.</div></div>
+
+          <div class="cc-panel-title cc-panel-title-spaced"><i class="fa-solid fa-user-shield"></i> Pending Human Approvals</div>
+          <div class="cc-panel-sub">High-risk actions awaiting server-side verification</div>
+          <div id="cc-approvals-list" class="cc-approvals-list"><div class="cc-empty">No pending approvals.</div></div>
+        </div>
+
+        <!-- Right: Live event stream -->
+        <div class="cc-panel">
+          <div class="cc-panel-title"><i class="fa-solid fa-wave-square"></i> Live Event Stream <span class="cc-live-dot"></span></div>
+          <div class="cc-panel-sub">Real-time normalized events over WebSocket</div>
+          <div id="cc-event-stream" class="cc-event-stream"><div class="cc-empty">Stream idle. Connecting…</div></div>
+        </div>
+      </div>
+
+      <!-- Modal Container -->
+      <div id="cc-modal-container"></div>
+    </section>
+
+  </main>
+
+  <!-- Global Footer Bar -->
+  <footer class="nexus-footer">
+    <div class="footer-left">
+      <span class="footer-brand">NEXUS FORGE v3.0</span>
+      <span class="footer-divider">•</span>
+      <span class="footer-desc">Powered by Omi Ambient Voice • Qdrant Vector Memory • Lyzr Agentic Orchestrator</span>
+    </div>
+    <div class="footer-right">
+      <span class="telemetry-pill"><i class="fa-solid fa-clock"></i> LATENCY: 1.4ms</span>
+      <span class="telemetry-pill"><i class="fa-solid fa-shield-halved"></i> SECURED</span>
+    </div>
+  </footer>
+
+  <!-- Keyboard Shortcuts Guide Modal -->
+  <div id="kbd-shortcuts-modal" class="nexus-modal-backdrop" style="display:none;">
+    <div class="nexus-modal-card">
+      <div class="modal-card-header">
+        <h3><i class="fa-solid fa-keyboard" style="color:var(--accent-primary);"></i> Crisis Command Keyboard Shortcuts</h3>
+        <button id="kbd-modal-close" class="modal-close-btn" title="Close (Esc)">&times;</button>
+      </div>
+      <div class="modal-card-body">
+        <div class="shortcut-item"><div class="shortcut-keys"><kbd>Space</kbd></div><span class="shortcut-desc">Push-to-Talk (Hold to stream speech via Omi Voice Engine)</span></div>
+        <div class="shortcut-item"><div class="shortcut-keys"><kbd>1</kbd> - <kbd>8</kbd></div><span class="shortcut-desc">Quick switch views (Command Center, Live Mission, Parliament, Connectors, etc.)</span></div>
+        <div class="shortcut-item"><div class="shortcut-keys"><kbd>E</kbd></div><span class="shortcut-desc">Export audit-ready Incident Dossier (JSON/Markdown)</span></div>
+        <div class="shortcut-item"><div class="shortcut-keys"><kbd>B</kbd></div><span class="shortcut-desc">Simulate synthetic connector telemetry burst</span></div>
+        <div class="shortcut-item"><div class="shortcut-keys"><kbd>M</kbd></div><span class="shortcut-desc">Toggle sound effects and ambient synthesizer</span></div>
+        <div class="shortcut-item"><div class="shortcut-keys"><kbd>?</kbd></div><span class="shortcut-desc">Open / toggle this shortcuts guide</span></div>
+        <div class="shortcut-item"><div class="shortcut-keys"><kbd>Esc</kbd></div><span class="shortcut-desc">Dismiss active modal</span></div>
+      </div>
+      <div class="modal-card-footer">
+        <span style="font-size:0.75rem; color:var(--text-muted);">Pro-tip: Press <kbd>?</kbd> anytime to toggle this cheat sheet.</span>
+        <button id="kbd-modal-dismiss-btn" class="hud-btn" style="padding:4px 14px;">Dismiss</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Real-Time Toast Notification System -->
+  <div id="nexus-toast-container" class="toast-container"></div>
+
+  <!-- Application Scripts with Cache-Busting Version Query -->
+  <script src="js/audio-synth.js?v=20260903_1144"></script>
+  <script src="js/nexus-core.js?v=20260903_1144"></script>
+  <script src="js/dag-visualizer.js?v=20260903_1144"></script>
+  <script src="js/memory-galaxy.js?v=20260903_1144"></script>
+  <script src="js/simulation.js?v=20260903_1144"></script>
+  <script src="js/connector-center.js?v=20260903_1200"></script>
+  <script src="js/app.js?v=20260903_1144"></script>
+</body>
+</html>
