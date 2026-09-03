@@ -81,8 +81,11 @@ Qdrant stores every meaningful artifact so the platform gets smarter across miss
   `mission_memory`, `decision_memory`, `failure_memory`, `workflow_memory`,
   `agent_memory`, `dissent_memory`, `reflection_memory`, `domain_memory`,
   `cross_domain_memory`.
-- Embeddings are computed by a deterministic, content-aware hashing embedder
-  (`embed_text`, 384-dim, L2-normalized) — offline and reproducible, no external API.
+- Dense 384-dimensional semantic vector embeddings are computed by Qdrant's official
+  `fastembed` library using `BAAI/bge-small-en-v1.5` running locally via ONNX (with deterministic
+  feature hashing preserved as a resilient offline fallback).
+- Both live Qdrant cloud and the fallback in-memory store execute true cosine vector distance
+  search ($\mathbf{u} \cdot \mathbf{v} / (\|\mathbf{u}\|_2 \|\mathbf{v}\|_2)$) across all 9 collections.
 - `write_memory()` upserts records; `query_memory()` uses `query_points(...)`
   (the `qdrant-client ≥1.x` API; `.search` was removed/renamed and is not used).
 - `GET /api/v1/memory/stats` and `/api/v1/memory/collections` expose store health;

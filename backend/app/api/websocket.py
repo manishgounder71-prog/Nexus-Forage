@@ -124,3 +124,56 @@ async def websocket_org_event_stream(websocket: WebSocket, org_id: str):
         for topic in (f"org.{org_id}.events", f"org.{org_id}.incidents", f"org.{org_id}.crises"):
             event_bus.unsubscribe(topic, relay)
         manager.disconnect_org(org_id, websocket)
+
+
+@router.websocket("/ws/omi/v4/listen")
+async def websocket_omi_v4_listen(websocket: WebSocket):
+    """
+    Official Omi /v4/listen WebSocket protocol endpoint.
+    Accepts 16kHz Mono 16-bit PCM binary chunks streamed from Omi hardware or client,
+    computes audio energy & real-time speech activity detection, and streams back
+    live transcript segments and crisis wake-word triggers.
+    """
+    await websocket.accept()
+    chunk_counter = 0
+    audio_accumulator = bytearray()
+    try:
+        while True:
+            message = await websocket.receive()
+            if "bytes" in message and message["bytes"]:
+                chunk = message["bytes"]
+                chunk_counter += 1
+                audio_accumulator.extend(chunk)
+
+                # Compute RMS energy from 16-bit PCM samples
+                import struct
+                sample_count = len(chunk) // 2
+                rms_energy = 0.0
+                if sample_count > 0:
+                    samples = struct.unpack(f"<{sample_count}h", chunk[:sample_count * 2])
+                    sum_sq = sum(s * s for s in samples)
+                    rms_energy = round((sum_sq / sample_count) ** 0.5, 2)
+
+                transcript_text = ""
+                wake_word = False
+                if len(audio_accumulator) >= 16000:  # ~0.5s of 16kHz 16-bit PCM
+                    from app.services.omi_service import omi_service
+                    res = await omi_service.transcribe_audio_bytes(bytes(audio_accumulator), content_type="audio/pcm")
+                    transcript_text = res.get("transcription", "")
+                    wake_word = any(w in transcript_text.lower() for w in ["nexus", "crisis", "emergency", "attack", "alert"])
+                    audio_accumulator.clear()
+
+                await websocket.send_json({
+                    "type": "omi_audio_frame",
+                    "chunk": chunk_counter,
+                    "bytes_received": len(chunk),
+                    "rms_energy": rms_energy,
+                    "speech_detected": rms_energy > 300.0,
+                    "wake_word_detected": wake_word,
+                    "transcript": transcript_text
+                })
+            elif "text" in message and message["text"]:
+                await websocket.send_json({"type": "ack", "status": "listening"})
+    except WebSocketDisconnect:
+        pass
+

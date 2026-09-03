@@ -10,7 +10,7 @@ It integrates all three mandatory sponsor technologies end-to-end:
 | Pillar | Role in the pipeline | Live path |
 |---|---|---|
 | **Omi** | Real-time microphone voice capture (Web Speech API verbatim STT + Gemini audio transcribe), wake-word activation, `/v4/listen` ambient streaming protocol, automated mission launch | `app/services/omi_service.py` + `/api/v1/missions/voice-ingest` + `/api/v1/missions/omi-webhook` |
-| **Qdrant** | Persistent dense semantic vector memory via Qdrant's official FastEmbed (`BAAI/bge-small-en-v1.5`, 384-dim) across 7 collections (missions, decisions, failures, agents, dissent, reflection, domain) | `app/memory/qdrant_client.py` (real cloud or in-memory Qdrant + FastEmbed ONNX) |
+| **Qdrant** | Persistent dense semantic vector memory via Qdrant's official FastEmbed (`BAAI/bge-small-en-v1.5`, 384-dim) across 9 collections (mission, decision, failure, workflow, agent, dissent, reflection, domain, cross_domain) | `app/memory/qdrant_client.py` (real cloud or in-memory Qdrant + FastEmbed ONNX) |
 | **Lyzr** | Multi-agent orchestration, dynamic LLM deliberation, and task execution by specialized swarm agents | `app/agents/lyzr_client.py` + `app/agents/runtime.py` + `app/agents/llm_reasoning.py` |
 | **Org Connectors** | Real event-pipeline ingestion (GitHub / Slack / monitoring / webhook / custom API / support) → correlation → incident → auto-triggered NEXUS mission | `app/connectors/` + `app/pipeline/` + `app/api/connectors.py` |
 

@@ -1,9 +1,9 @@
 FROM nginx:alpine
 
-COPY frontend/nginx.conf /etc/nginx/nginx.conf
-COPY frontend/index.html /usr/share/nginx/html/index.html
-COPY frontend/css/ /usr/share/nginx/html/css/
-COPY frontend/js/ /usr/share/nginx/html/js/
+COPY nginx.conf /etc/nginx/nginx.conf
+COPY index.html /usr/share/nginx/html/index.html
+COPY css/ /usr/share/nginx/html/css/
+COPY js/ /usr/share/nginx/html/js/
 
 EXPOSE 5500
 

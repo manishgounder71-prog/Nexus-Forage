@@ -68,6 +68,15 @@ def embed_text(text: str, dim: int = VECTOR_DIM) -> List[float]:
         vec = [v / norm for v in vec]
     return vec
 
+def _vector_cosine_similarity(v1: List[float], v2: List[float]) -> float:
+    """Calculates true cosine similarity between two dense 384-dim vectors."""
+    dot = sum(a * b for a, b in zip(v1, v2))
+    norm_a = sum(a * a for a in v1) ** 0.5
+    norm_b = sum(b * b for b in v2) ** 0.5
+    if norm_a == 0 or norm_b == 0:
+        return 0.0
+    return float(dot / (norm_a * norm_b))
+
 MEMORY_COLLECTIONS = [
     "mission_memory",
     "decision_memory",
@@ -269,7 +278,7 @@ class QdrantMemoryStore:
             except Exception as e:
                 print(f"[QdrantMemoryStore] Search error in {collection_name}: {e}")
 
-        # Fallback in-memory search with domain preference & tenant filter
+        # Genuine in-memory vector search with 384-dim cosine similarity
         store_items = []
         if collection_name == "all":
             for c in MEMORY_COLLECTIONS:
@@ -277,41 +286,39 @@ class QdrantMemoryStore:
         else:
             store_items = self.in_memory_store.get(collection_name, [])
 
-        matched = []
-        words = set(query.lower().split())
-        for item in reversed(store_items):
+        scored_items = []
+        for item in store_items:
             # Tenant isolation filter
             if organization_id:
                 rec_org = item.get("organization_id", settings.DEMO_ORG_ID)
                 if rec_org != organization_id:
                     continue
 
-            text = item.get("content", "").lower()
+            # Tag filter
             tags = item.get("tags", [])
-            item_domain = item.get("domain", "")
-
-            # Check filter tags if specified
             if filter_tags and not any(t in tags for t in filter_tags):
                 continue
 
-            matches_count = sum(1 for w in words if w in text)
-            sim = 0.85 + (matches_count * 0.04) if words else 0.90
-            
-            # Domain alignment bonus
-            if domain and item_domain == domain:
-                sim += 0.05
+            item_vec = item.get("vector")
+            if not item_vec or len(item_vec) != len(vector):
+                item_vec = embed_text(item.get("content", ""))
+                item["vector"] = item_vec
+
+            # Compute actual cosine distance in 384-dimensional vector space
+            sim = _vector_cosine_similarity(vector, item_vec)
+
+            # Domain alignment subtle weight (prioritizes domain relevance when tied)
+            item_domain = item.get("domain", "")
+            domain_bonus = 0.03 if (domain and item_domain == domain) else 0.0
+            total_score = min(sim + domain_bonus, 0.99)
 
             item_copy = dict(item)
-            item_copy["similarity_score"] = round(min(sim, 0.99), 2)
-            
-            if matches_count > 0 or not words or (domain and item_domain == domain):
-                matched.append(item_copy)
-            if len(matched) >= limit:
-                break
+            item_copy["similarity_score"] = round(float(total_score), 3)
+            scored_items.append((total_score, item_copy))
 
-        return matched if matched else [
-            {**it, "similarity_score": 0.89} for it in store_items[-limit:]
-            if not organization_id or it.get("organization_id", settings.DEMO_ORG_ID) == organization_id
-        ]
+        # Sort strictly by descending cosine vector similarity
+        scored_items.sort(key=lambda x: x[0], reverse=True)
+        return [it for _, it in scored_items[:limit]]
 
 qdrant_store = QdrantMemoryStore()
+

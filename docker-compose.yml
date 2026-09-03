@@ -55,8 +55,8 @@ services:
   # ── High-Performance Nginx Frontend Reverse Proxy ────────────────────────────
   frontend:
     build:
-      context: .
-      dockerfile: frontend/Dockerfile
+      context: ./frontend
+      dockerfile: Dockerfile
     container_name: nexus_forge_frontend
     restart: unless-stopped
     ports:
