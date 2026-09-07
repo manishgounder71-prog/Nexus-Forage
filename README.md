@@ -20,6 +20,9 @@ crises, and auto-escalate straight into an autonomous NEXUS mission (agents gain
 connector read/propose/execute tools). See the **Connector Platform** section below and
 the "Connectors" tab in the frontend.
 
+> [!TIP]
+> **Detailed Documentation**: For full architectural deep-dives, sponsor API specs, security cryptography details, and cloud deployment guides, see [documentation.md](file:///d:/stop%20prompt/documentation.md).
+
 ---
 
 ## Quick start
