@@ -20,6 +20,38 @@ crises, and auto-escalate straight into an autonomous NEXUS mission (agents gain
 connector read/propose/execute tools). See the **Connector Platform** section below and
 the "Connectors" tab in the frontend.
 
+### System Architecture: The Unified Voice-to-Agent-to-Memory Loop
+
+```mermaid
+flowchart LR
+    subgraph S1["1. Capture & Ingest (OMI)"]
+        A1["Microphone / Ambient Stream"] --> A2["Omi Voice Service\n(Gemini STT / Ambient Parser)"]
+        A2 --> A3["Wake-Word & Crisis Intent\n('Nexus Blackout...')"]
+    end
+
+    subgraph S2["2. Orchestration & Deliberation (LYZR)"]
+        A3 --> B1["Adaptive Org Engine"]
+        B1 --> B2["Lyzr Agent Framework v3\n(Manager / Supervisor Hierarchy)"]
+        B2 --> B3["Parliament Deliberation\n(Dissent & Plan A -> Plan B)"]
+        B3 --> B4["DAG Execution Engine\n(Task Graph Dispatch)"]
+    end
+
+    subgraph S3["3. Persistent Vector Memory (QDRANT)"]
+        B4 <--> C1["Qdrant Cloud Vector Store\n(9 Dedicated Collections)"]
+        C1 <--> C2["FastEmbed 384-Dim\nDense Semantic Search"]
+    end
+
+    subgraph S4["4. Live Interface & Governance"]
+        B4 --> D1["Action Approval Gate\n(Human-in-the-Loop)"]
+        D1 --> D2["Cyberpunk Glassmorphism UI\n(WebSocket Live Stream)"]
+    end
+
+    style S1 fill:#1e1b4b,stroke:#818cf8,stroke-width:2px,color:#fff
+    style S2 fill:#0f172a,stroke:#38bdf8,stroke-width:2px,color:#fff
+    style S3 fill:#14532d,stroke:#4ade80,stroke-width:2px,color:#fff
+    style S4 fill:#450a0a,stroke:#f87171,stroke-width:2px,color:#fff
+```
+
 > [!TIP]
 > **Detailed Documentation**: For full architectural deep-dives, sponsor API specs, security cryptography details, and cloud deployment guides, see [documentation.md](file:///d:/stop%20prompt/documentation.md).
 
