@@ -476,7 +476,14 @@ class MemoryGalaxyEngine {
       ).join('');
 
       const catColor = { mission: '#8b5cf6', decision: '#10b981', failure: '#ef4444', dissent: '#ec4899' };
+      const catLabels = {
+        mission: 'Past Fix & Recovery',
+        decision: 'Team Consensus Decision',
+        failure: 'Past Mistake to Avoid',
+        dissent: 'Safety Officer Warning'
+      };
       const cc = catColor[node.category] || '#6b7280';
+      const catLabel = catLabels[node.category] || 'Saved Lesson';
 
       // Build 32x4 = 128 cell preview heatmap
       const previewDims = node.fullVector.slice(0, 128);
@@ -485,32 +492,32 @@ class MemoryGalaxyEngine {
         const r = Math.round(139 * norm + 16 * (1 - norm));
         const g = Math.round(92 * norm + 185 * (1 - norm));
         const b = Math.round(246 * norm + 129 * (1 - norm));
-        return `<div class="vec-dim-cell" title="Dim ${idx}: ${val}" style="background:rgb(${r},${g},${b}); opacity:${0.4 + Math.abs(val)*0.6};"></div>`;
+        return `<div class="vec-dim-cell" title="Pattern ${idx + 1}: ${val}" style="background:rgb(${r},${g},${b}); opacity:${0.4 + Math.abs(val)*0.6};"></div>`;
       }).join('');
 
       panel.innerHTML = `
         <div style="margin-bottom:10px;">
-          <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:6px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:4px;">
             <div style="font-weight:700;color:#fff;font-size:0.9rem;line-height:1.3;">${node.title}</div>
-            <span style="background:${cc}22;color:${cc};padding:2px 8px;border-radius:8px;border:1px solid ${cc}55;font-size:0.65rem;font-family:monospace;font-weight:700;white-space:nowrap;">${node.similarity}%</span>
+            <span style="background:${cc}22;color:${cc};padding:2px 8px;border-radius:8px;border:1px solid ${cc}55;font-size:0.68rem;font-weight:700;white-space:nowrap;">${node.similarity}% Match</span>
           </div>
-          <div style="font-family:monospace;font-size:0.65rem;color:#a78bfa;">${node.id} · qdrant://${node.category}_memory</div>
+          <div style="font-size:0.65rem;color:#a78bfa;font-family:monospace;">Category: ${catLabel} · ${node.id}</div>
         </div>
 
-        <!-- Cosine Metric Formula Card -->
-        <div style="background:rgba(139,92,246,0.08); border:1px solid rgba(139,92,246,0.25); border-radius:6px; padding:6px 10px; margin-bottom:8px; font-family:monospace; font-size:0.65rem; color:#c4b5fd;">
+        <!-- Relevance explanation card -->
+        <div style="background:rgba(139,92,246,0.08); border:1px solid rgba(139,92,246,0.25); border-radius:6px; padding:7px 10px; margin-bottom:10px; font-size:0.68rem; color:#c4b5fd;">
           <div style="display:flex; justify-content:space-between; margin-bottom:2px;">
-            <span style="color:#9ca3af;">DISTANCE METRIC:</span>
-            <strong style="color:#10b981;">COSINE (HNSW)</strong>
+            <span style="color:#9ca3af;">RELEVANCE TO CURRENT INCIDENT:</span>
+            <strong style="color:#10b981;">${node.similarity}% SIMILAR</strong>
           </div>
-          <div style="color:#a78bfa; font-size:0.62rem;">cos(θ) = (u · v) / (||u|| ||v||) = ${(node.similarity/100).toFixed(3)}</div>
+          <div style="color:#a78bfa; font-size:0.63rem;">AI identified this past event as having nearly identical symptoms and root causes.</div>
         </div>
 
         <!-- 384-Dim Vector Heatmap -->
         <div style="background:rgba(0,0,0,0.5); border:1px solid rgba(139,92,246,0.25); border-radius:8px; padding:8px 10px; margin-bottom:10px;">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-            <span style="font-size:0.6rem; font-family:monospace; color:#6b7280;">384-DIM DENSE EMBEDDING (FASTEMBED)</span>
-            <span style="font-size:0.58rem; font-family:monospace; color:#10b981;">BAAI/bge-small</span>
+            <span style="font-size:0.62rem; font-weight:700; color:#c4b5fd;">AI MEMORY FINGERPRINT</span>
+            <span style="font-size:0.58rem; color:#10b981; font-family:monospace;">384 Features</span>
           </div>
           
           <div class="vec-heatmap-grid">
@@ -518,30 +525,33 @@ class MemoryGalaxyEngine {
           </div>
           
           <button id="mem-copy-vec-btn" style="width:100%; background:rgba(139,92,246,0.12); border:1px solid rgba(139,92,246,0.3); color:#a78bfa; padding:5px 8px; border-radius:6px; font-size:0.62rem; font-family:monospace; cursor:pointer; font-weight:700; transition:all 0.2s ease;">
-            <i class="fa-solid fa-copy"></i> COPY 384-DIM FLOAT32 ARRAY
+            <i class="fa-solid fa-copy"></i> COPY RAW MEMORY DATA
           </button>
         </div>
 
-        <!-- Payload Description -->
-        <div style="font-size:0.75rem; color:#d1d5db; line-height:1.45; margin-bottom:10px; padding:8px; background:rgba(255,255,255,0.03); border-radius:6px; border-left:3px solid ${cc};">
+        <!-- What Happened & Solution -->
+        <div style="font-size:0.64rem; color:#9ca3af; font-weight:700; margin-bottom:4px; text-transform:uppercase;">
+          <i class="fa-solid fa-circle-info" style="color:${cc};"></i> What Happened & Action Taken:
+        </div>
+        <div style="font-size:0.75rem; color:#e5e7eb; line-height:1.45; margin-bottom:10px; padding:8px 10px; background:rgba(255,255,255,0.04); border-radius:6px; border-left:3px solid ${cc};">
           ${node.payload}
         </div>
 
         <div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:10px;">${tagsHtml}</div>
 
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;">
-          <div style="background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.25);border-radius:6px;padding:5px 8px;">
-            <div style="font-family:monospace;font-size:0.6rem;color:#6b7280;">COLLECTION</div>
-            <div style="font-size:0.72rem;font-weight:700;color:#10b981;">${node.category.toUpperCase()}</div>
+          <div style="background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.25);border-radius:6px;padding:6px 8px;">
+            <div style="font-size:0.6rem;color:#9ca3af;font-weight:700;">TYPE</div>
+            <div style="font-size:0.72rem;font-weight:700;color:#10b981;">${catLabel.split('&')[0]}</div>
           </div>
-          <div style="background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.25);border-radius:6px;padding:5px 8px;">
-            <div style="font-family:monospace;font-size:0.6rem;color:#6b7280;">COSINE SIM</div>
-            <div style="font-size:0.72rem;font-weight:700;color:#3b82f6;">${node.similarity}%</div>
+          <div style="background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.25);border-radius:6px;padding:6px 8px;">
+            <div style="font-size:0.6rem;color:#9ca3af;font-weight:700;">MATCH SCORE</div>
+            <div style="font-size:0.72rem;font-weight:700;color:#3b82f6;">${node.similarity}% Match</div>
           </div>
         </div>
 
-        <button style="width:100%;background:linear-gradient(135deg,#8b5cf6,#7c3aed);border:none;color:#fff;padding:8px;border-radius:8px;font-size:0.72rem;font-weight:700;cursor:pointer;font-family:monospace;" onclick="if(window.nexusAudio)window.nexusAudio.playChime(800,'sine',0.2);">
-          <i class="fa-solid fa-magnifying-glass-chart"></i> QUERY HNSW KNN NEIGHBORS
+        <button style="width:100%;background:linear-gradient(135deg,#8b5cf6,#7c3aed);border:none;color:#fff;padding:8px;border-radius:8px;font-size:0.72rem;font-weight:700;cursor:pointer;" onclick="if(window.nexusAudio)window.nexusAudio.playChime(800,'sine',0.2);">
+          <i class="fa-solid fa-magnifying-glass"></i> FIND SIMILAR PAST INCIDENTS
         </button>
       `;
     }

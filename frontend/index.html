@@ -814,71 +814,71 @@
             <div>
               <h2 style="font-family:var(--font-display); font-size:1.1rem; font-weight:700; color:#fff; letter-spacing:0.08em;">
                 <i class="fa-solid fa-brain" style="color:var(--primary); margin-right:8px;"></i>
-                ORGANIZATIONAL MEMORY GALAXY <span style="color:var(--primary); font-size:0.8rem;">(QDRANT v3.0)</span>
+                ORGANIZATIONAL MEMORY GALAXY <span style="color:var(--primary); font-size:0.8rem;">(PAST LESSONS & FIXES)</span>
               </h2>
               <p style="color:var(--text-muted); font-size:0.75rem; margin-top:3px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-                <span>Interactive 384-dim vector memory constellation</span>
-                <span id="mem-galaxy-context-badge" style="color:var(--primary-bright); font-family:var(--font-mono); font-weight:700; background:rgba(139,92,246,0.18); border:1px solid rgba(139,92,246,0.4); padding:2px 10px; border-radius:12px; font-size:0.7rem;">Active Incident: Production Deployment Incident (8 Vectors)</span>
+                <span>Interactive map of how AI remembers past crises, team decisions, and solutions</span>
+                <span id="mem-galaxy-context-badge" style="color:var(--primary-bright); font-family:var(--font-mono); font-weight:700; background:rgba(139,92,246,0.18); border:1px solid rgba(139,92,246,0.4); padding:2px 10px; border-radius:12px; font-size:0.7rem;">Current Incident: Production Deployment (8 Saved Lessons)</span>
               </p>
             </div>
             <!-- Live Stats Bar -->
             <div style="display:flex; gap:12px;">
               <div style="text-align:center; background:rgba(139,92,246,0.1); border:1px solid rgba(139,92,246,0.3); border-radius:10px; padding:6px 14px;">
                 <div id="mem-stat-total" style="font-family:var(--font-mono); font-size:1.1rem; font-weight:800; color:var(--primary);">8</div>
-                <div style="font-size:0.6rem; color:var(--text-subtle); font-family:var(--font-mono);">VECTORS</div>
+                <div style="font-size:0.6rem; color:var(--text-subtle); font-family:var(--font-mono);">SAVED LESSONS</div>
               </div>
               <div style="text-align:center; background:rgba(16,185,129,0.1); border:1px solid rgba(16,185,129,0.3); border-radius:10px; padding:6px 14px;">
                 <div id="mem-stat-avg" style="font-family:var(--font-mono); font-size:1.1rem; font-weight:800; color:var(--color-success);">92.1%</div>
-                <div style="font-size:0.6rem; color:var(--text-subtle); font-family:var(--font-mono);">AVG SIM</div>
+                <div style="font-size:0.6rem; color:var(--text-subtle); font-family:var(--font-mono);">MATCH QUALITY</div>
               </div>
               <div style="text-align:center; background:rgba(59,130,246,0.1); border:1px solid rgba(59,130,246,0.3); border-radius:10px; padding:6px 14px;">
                 <div style="font-family:var(--font-mono); font-size:1.1rem; font-weight:800; color:#3b82f6;">1.4ms</div>
-                <div style="font-size:0.6rem; color:var(--text-subtle); font-family:var(--font-mono);">HNSW QUERY</div>
+                <div style="font-size:0.6rem; color:var(--text-subtle); font-family:var(--font-mono);">SEARCH SPEED</div>
               </div>
             </div>
           </div>
 
           <!-- Filter + Search Row -->
           <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:8px;">
-            <span class="cat-pill active" data-cat="all">ALL</span>
-            <span class="cat-pill" data-cat="mission" style="--pill-color:#8b5cf6;">MISSION</span>
-            <span class="cat-pill" data-cat="decision" style="--pill-color:#10b981;">DECISION</span>
-            <span class="cat-pill" data-cat="failure" style="--pill-color:#ef4444;">FAILURE</span>
-            <span class="cat-pill" data-cat="dissent" style="--pill-color:#ec4899;">DISSENT</span>
+            <span class="cat-pill active" data-cat="all">SHOW ALL</span>
+            <span class="cat-pill" data-cat="mission" style="--pill-color:#8b5cf6;">PAST FIXES</span>
+            <span class="cat-pill" data-cat="decision" style="--pill-color:#10b981;">DECISIONS</span>
+            <span class="cat-pill" data-cat="failure" style="--pill-color:#ef4444;">MISTAKES</span>
+            <span class="cat-pill" data-cat="dissent" style="--pill-color:#ec4899;">WARNINGS</span>
 
             <div style="margin-left:auto; display:flex; align-items:center; gap:8px; background:rgba(0,0,0,0.5); padding:6px 14px; border-radius:20px; border:1px solid var(--primary-glow);">
               <i class="fa-solid fa-magnifying-glass" style="color:var(--primary-bright); font-size:0.72rem;"></i>
-              <input type="text" id="qdrant-memory-search" placeholder="Semantic search vector memory..." style="background:transparent; border:none; color:#fff; font-size:0.75rem; font-family:var(--font-mono); outline:none; width:210px;">
+              <input type="text" id="qdrant-memory-search" placeholder="Search past lessons, fixes, or errors..." style="background:transparent; border:none; color:#fff; font-size:0.75rem; font-family:var(--font-mono); outline:none; width:220px;">
             </div>
             <button id="mem-add-node-btn" style="background:rgba(139,92,246,0.15); border:1px solid rgba(139,92,246,0.4); color:var(--primary-bright); font-size:0.72rem; font-family:var(--font-mono); padding:6px 12px; border-radius:20px; cursor:pointer; font-weight:700;">
-              <i class="fa-solid fa-plus"></i> ADD VECTOR
+              <i class="fa-solid fa-plus"></i> ADD LESSON
             </button>
           </div>
 
           <!-- Qdrant 9-Collections Ribbon + Quick Query Chips -->
-          <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; padding-top:6px; border-top:1px solid rgba(255,255,255,0.06);">
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; padding-top:6px; border-top:1px solid rgba(255,255,20.06);">
             <div class="qdrant-collections-ribbon" style="display:flex; align-items:center; gap:5px; overflow-x:auto; scrollbar-width:none;">
               <span style="font-family:var(--font-mono); font-size:0.62rem; color:var(--text-subtle); white-space:nowrap; display:flex; align-items:center; gap:4px; margin-right:4px;">
-                <i class="fa-solid fa-layer-group" style="color:#10b981;"></i> 9 COLLECTIONS:
+                <i class="fa-solid fa-folder-open" style="color:#10b981;"></i> MEMORY FOLDERS:
               </span>
-              <button class="qdrant-col-btn active" data-col="all">ALL (384-DIM)</button>
-              <button class="qdrant-col-btn" data-col="mission">mission_memory</button>
-              <button class="qdrant-col-btn" data-col="decision">decision_memory</button>
-              <button class="qdrant-col-btn" data-col="failure">failure_memory</button>
-              <button class="qdrant-col-btn" data-col="dissent">dissent_memory</button>
-              <button class="qdrant-col-btn" data-col="reflection">reflection_memory</button>
-              <button class="qdrant-col-btn" data-col="domain">domain_memory</button>
-              <button class="qdrant-col-btn" data-col="agent">agent_memory</button>
-              <button class="qdrant-col-btn" data-col="workflow">workflow_memory</button>
+              <button class="qdrant-col-btn active" data-col="all">ALL MEMORIES</button>
+              <button class="qdrant-col-btn" data-col="mission">Past Fixes</button>
+              <button class="qdrant-col-btn" data-col="decision">Team Decisions</button>
+              <button class="qdrant-col-btn" data-col="failure">Past Mistakes</button>
+              <button class="qdrant-col-btn" data-col="dissent">Safety Warnings</button>
+              <button class="qdrant-col-btn" data-col="reflection">Self Reviews</button>
+              <button class="qdrant-col-btn" data-col="domain">Industry Knowledge</button>
+              <button class="qdrant-col-btn" data-col="agent">Agent Records</button>
+              <button class="qdrant-col-btn" data-col="workflow">Runbooks</button>
             </div>
 
             <!-- Quick Query Suggestions -->
             <div id="mem-quick-queries" style="display:flex; align-items:center; gap:5px;">
-              <span style="font-family:var(--font-mono); font-size:0.6rem; color:var(--text-subtle);">QUICK QUERY:</span>
+              <span style="font-family:var(--font-mono); font-size:0.6rem; color:var(--text-subtle);">TRY SEARCHING:</span>
               <button class="mem-quick-query-chip" data-query="rollback">Canary Rollback</button>
-              <button class="mem-quick-query-chip" data-query="connection pool">Connection Pool</button>
-              <button class="mem-quick-query-chip" data-query="pod drain">Pod Drain</button>
-              <button class="mem-quick-query-chip" data-query="deadlock">Deadlock</button>
+              <button class="mem-quick-query-chip" data-query="connection pool">Database Overload</button>
+              <button class="mem-quick-query-chip" data-query="pod drain">Safe Server Drain</button>
+              <button class="mem-quick-query-chip" data-query="deadlock">Data Deadlock</button>
             </div>
           </div>
         </div>
@@ -899,10 +899,10 @@
 
             <!-- Canvas Control Overlay -->
             <div style="position:absolute; bottom:12px; left:50%; transform:translateX(-50%); display:flex; gap:8px;">
-              <button id="mem-zoom-in" style="background:rgba(0,0,0,0.65); border:1px solid var(--border-glass); color:#fff; width:32px; height:32px; border-radius:8px; cursor:pointer; font-size:1rem;">+</button>
-              <button id="mem-zoom-out" style="background:rgba(0,0,0,0.65); border:1px solid var(--border-glass); color:#fff; width:32px; height:32px; border-radius:8px; cursor:pointer; font-size:1rem;">−</button>
-              <button id="mem-reset" style="background:rgba(0,0,0,0.65); border:1px solid var(--border-glass); color:#fff; width:32px; height:32px; border-radius:8px; cursor:pointer; font-size:0.7rem; font-family:var(--font-mono);">RST</button>
-              <button id="mem-freeze" style="background:rgba(0,0,0,0.65); border:1px solid var(--border-glass); color:var(--color-warning); width:32px; height:32px; border-radius:8px; cursor:pointer; font-size:0.65rem; font-family:var(--font-mono);" title="Freeze constellation">❄</button>
+              <button id="mem-zoom-in" style="background:rgba(0,0,0,0.65); border:1px solid var(--border-glass); color:#fff; width:32px; height:32px; border-radius:8px; cursor:pointer; font-size:1rem;" title="Zoom in">+</button>
+              <button id="mem-zoom-out" style="background:rgba(0,0,0,0.65); border:1px solid var(--border-glass); color:#fff; width:32px; height:32px; border-radius:8px; cursor:pointer; font-size:1rem;" title="Zoom out">−</button>
+              <button id="mem-reset" style="background:rgba(0,0,0,0.65); border:1px solid var(--border-glass); color:#fff; width:32px; height:32px; border-radius:8px; cursor:pointer; font-size:0.7rem; font-family:var(--font-mono);" title="Reset view">RESET</button>
+              <button id="mem-freeze" style="background:rgba(0,0,0,0.65); border:1px solid var(--border-glass); color:var(--color-warning); width:32px; height:32px; border-radius:8px; cursor:pointer; font-size:0.65rem; font-family:var(--font-mono);" title="Pause movement">PAUSE</button>
             </div>
           </div>
 
@@ -912,24 +912,24 @@
             <!-- Detail Card Header -->
             <div style="padding:14px 16px 10px; border-bottom:1px solid var(--border-glass);">
               <div style="font-family:var(--font-mono); font-size:0.65rem; color:var(--primary-bright); font-weight:700; margin-bottom:4px;">
-                <i class="fa-solid fa-database"></i> QDRANT VECTOR INSPECTOR
+                <i class="fa-solid fa-brain"></i> SELECTED LESSON DETAILS
               </div>
-              <div style="font-size:0.7rem; color:var(--text-subtle);">Click or hover any node in the galaxy</div>
+              <div style="font-size:0.7rem; color:var(--text-subtle);">Click any circle on the left to see what happened</div>
             </div>
 
             <!-- Scrollable Detail Body -->
             <div id="memory-detail-content" style="flex:1; overflow-y:auto; padding:14px 16px; font-size:0.78rem; color:var(--text-muted); line-height:1.5;">
               <div style="text-align:center; padding:30px 0; color:var(--text-subtle);">
-                <i class="fa-solid fa-atom" style="font-size:2rem; color:rgba(139,92,246,0.4); margin-bottom:12px; display:block;"></i>
-                Select a memory node<br>to inspect its vector payload
+                <i class="fa-solid fa-lightbulb" style="font-size:2rem; color:rgba(139,92,246,0.4); margin-bottom:12px; display:block;"></i>
+                Click any circle on the map<br>to see the lesson and how it was solved
               </div>
             </div>
 
             <!-- Similarity Radar Bar -->
             <div style="padding:12px 16px; border-top:1px solid var(--border-glass);">
-              <div style="font-family:var(--font-mono); font-size:0.62rem; color:var(--text-subtle); margin-bottom:8px;">TOP SIMILAR MEMORIES (HNSW KNN)</div>
+              <div style="font-family:var(--font-mono); font-size:0.62rem; color:var(--text-subtle); margin-bottom:8px;">CLOSEST RELATED PAST CASES</div>
               <div id="mem-similarity-bars" style="display:flex; flex-direction:column; gap:5px;">
-                <div style="font-size:0.7rem; color:var(--text-subtle); text-align:center;">No node selected</div>
+                <div style="font-size:0.7rem; color:var(--text-subtle); text-align:center;">No memory selected</div>
               </div>
             </div>
           </div>
