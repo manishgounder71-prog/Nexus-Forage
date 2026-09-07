@@ -10,8 +10,8 @@
   'use strict';
 
   // Configurable Render backend default URL
-  // If deployed to Vercel and no local override exists, this fallback is used:
-  const DEFAULT_RENDER_BACKEND = 'https://nexus-forge-backend.onrender.com';
+  // Matches live deployment: https://nexus-forage.onrender.com
+  const DEFAULT_RENDER_BACKEND = 'https://nexus-forage.onrender.com';
 
   function isLocalhost(hostname) {
     return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]' || hostname.endsWith('.local');

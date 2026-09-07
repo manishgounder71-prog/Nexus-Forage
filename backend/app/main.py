@@ -63,6 +63,20 @@ app.include_router(analytics_router, prefix=settings.API_V1_STR)
 app.include_router(audit_router, prefix=settings.API_V1_STR)
 app.include_router(ws_router)
 
+@app.api_route("/", methods=["GET", "HEAD"])
+async def root():
+    """Service landing endpoint providing system status and API navigation links."""
+    return {
+        "name": settings.PROJECT_NAME,
+        "status": "ONLINE",
+        "version": settings.VERSION,
+        "environment": settings.ENV,
+        "docs_url": "/docs",
+        "health_url": "/health",
+        "ping_url": "/ping",
+        "api_v1": settings.API_V1_STR
+    }
+
 @app.api_route("/ping", methods=["GET", "HEAD"])
 async def ping():
     """Ultra-fast keepalive probe for UptimeRobot / uptime bots to prevent sleeping."""
