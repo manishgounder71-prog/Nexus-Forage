@@ -588,6 +588,13 @@ body.nexus-app {
   padding: 8px 12px;
   border-radius: var(--radius-full);
   border: 1px solid var(--border-glass);
+  transition: all 0.3s ease;
+}
+
+.voice-input-bar.listening-active {
+  border-color: #ec4899;
+  box-shadow: 0 0 25px rgba(236, 72, 153, 0.4);
+  background: rgba(236, 72, 153, 0.06);
 }
 
 .mic-trigger-btn {
@@ -609,6 +616,17 @@ body.nexus-app {
 .mic-trigger-btn:hover, .mic-trigger-btn.active {
   box-shadow: 0 0 25px var(--primary);
   transform: scale(1.05);
+}
+
+.mic-trigger-btn.recording {
+  background: #ec4899;
+  box-shadow: 0 0 30px rgba(236, 72, 153, 0.9);
+  animation: micPulse 1.2s infinite ease-in-out;
+}
+
+@keyframes micPulse {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 15px rgba(236, 72, 153, 0.6); }
+  50% { transform: scale(1.1); box-shadow: 0 0 35px rgba(236, 72, 153, 1); }
 }
 
 .voice-prompt-area {
