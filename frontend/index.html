@@ -942,40 +942,272 @@
     <section id="view-org-evolution" class="nexus-view">
       <div class="evolution-container">
         
-        <div class="section-title-bar">
-          <h2>AI TEAM SELF-IMPROVEMENT</h2>
-          <p>The system detects slowdowns and automatically reorganizes the AI team to work faster</p>
-        </div>
-
-        <div class="evolution-showcase">
-          <div class="evo-card">
-            <h3><i class="fa-solid fa-triangle-exclamation"></i> Slowdown Detected</h3>
-            <div class="bottleneck-info">
-              <span class="bottleneck-target" id="bottleneck-target-text">SCADA Security → Grid Infrastructure Division</span>
-              <p id="bottleneck-desc-text">High dependency load on single SCADA Specialist caused a 380ms execution bottleneck during Substation 04 isolation.</p>
+        <!-- Header Bar -->
+        <div class="evo-header-bar">
+          <div>
+            <div class="evo-title-tag">
+              <i class="fa-solid fa-dna" style="color:var(--primary-bright);"></i>
+              <span>AUTONOMOUS AGENTIC TOPOLOGY MUTATION</span>
+              <span class="evo-live-pill"><span class="evo-live-dot"></span> ACTIVE GENERATION: GEN-04</span>
             </div>
+            <h2>AI TEAM SELF-IMPROVEMENT & EVOLUTION</h2>
+            <p>Reinforcement-driven graph mutation: identifies execution bottlenecks, auto-provisions parallel agent worker shards, and hot-swaps DAG topology in real time without stopping operations.</p>
           </div>
 
-          <div class="evo-card restructuring">
-            <h3><i class="fa-solid fa-diagram-nested"></i> Team Restructure — Before & After</h3>
-            <div class="topology-before-after">
-              <div class="topo-box">
-                <span class="topo-label">BEFORE (One at a Time)</span>
-                <code id="topo-before-code">SCADA Specialist → Grid Balancer</code>
-              </div>
-              <div class="topo-icon"><i class="fa-solid fa-arrow-right-long"></i></div>
-              <div class="topo-box upgraded">
-                <span class="topo-label">AFTER (Working in Parallel)</span>
-                <code id="topo-after-code">[SCADA A + SCADA B] → Key Validator → Grid Balancer</code>
-              </div>
-            </div>
+          <!-- Quick Action Buttons -->
+          <div class="evo-actions-row">
+            <button class="evo-btn evo-btn-outline" id="revert-evolution-btn" title="Revert to previous generation checkpoint">
+              <i class="fa-solid fa-clock-rotate-left"></i> <span>REVERT GEN-03</span>
+            </button>
+            <button class="evo-btn evo-btn-outline" id="export-evolution-spec-btn" title="Export organization topology spec">
+              <i class="fa-solid fa-file-code"></i> <span>EXPORT SPEC</span>
+            </button>
             <button class="evolve-btn" id="trigger-evolution-btn">
-              <i class="fa-solid fa-dna"></i>
-              <span>APPLY TEAM RESTRUCTURE</span>
+              <i class="fa-solid fa-play"></i>
+              <span>RUN MUTATION BENCHMARK</span>
             </button>
           </div>
         </div>
 
+        <!-- KPI Telemetry Strip -->
+        <div class="evo-kpi-strip">
+          <div class="evo-kpi-card">
+            <div class="evo-kpi-label"><i class="fa-solid fa-gauge-high"></i> LATENCY REDUCTION</div>
+            <div class="evo-kpi-val highlight-green" id="evo-kpi-latency">-64.3%</div>
+            <div class="evo-kpi-sub">420ms <span style="color:var(--text-subtle);">→</span> 150ms execution speed</div>
+          </div>
+          <div class="evo-kpi-card">
+            <div class="evo-kpi-label"><i class="fa-solid fa-network-wired"></i> WORKER CONCURRENCY</div>
+            <div class="evo-kpi-val highlight-blue" id="evo-kpi-workers">7 SHARDS</div>
+            <div class="evo-kpi-sub">Autoscaled from 4 sequential agents</div>
+          </div>
+          <div class="evo-kpi-card">
+            <div class="evo-kpi-label"><i class="fa-solid fa-coins"></i> TOKEN EFFICIENCY</div>
+            <div class="evo-kpi-val highlight-purple" id="evo-kpi-tokens">+41.8%</div>
+            <div class="evo-kpi-sub">Qdrant RAG cache & early pruning</div>
+          </div>
+          <div class="evo-kpi-card">
+            <div class="evo-kpi-label"><i class="fa-solid fa-bullseye"></i> GENETIC FITNESS SCORE</div>
+            <div class="evo-kpi-val highlight-amber" id="evo-kpi-fitness">0.942 / 1.0</div>
+            <div class="evo-kpi-sub">Converged in 4 mutation generations</div>
+          </div>
+        </div>
+
+        <!-- Interactive Generation Selector Ribbon -->
+        <div class="evo-gen-selector">
+          <span class="evo-gen-title"><i class="fa-solid fa-timeline"></i> TOPOLOGY EVOLUTION TIMELINE:</span>
+          <button class="evo-gen-pill" data-gen="1">
+            <span class="gen-tag">GEN-01</span>
+            <span class="gen-name">Sequential Swarm</span>
+            <span class="gen-meta">12.4s • 18% Dropout</span>
+          </button>
+          <button class="evo-gen-pill" data-gen="2">
+            <span class="gen-tag">GEN-02</span>
+            <span class="gen-name">Parliament Consensus</span>
+            <span class="gen-meta">4.8s • 2% Dropout</span>
+          </button>
+          <button class="evo-gen-pill active" data-gen="3">
+            <span class="gen-tag active-tag">GEN-03</span>
+            <span class="gen-name">Self-Mutating Parallel Org</span>
+            <span class="gen-meta">1.5s • 0% Dropout (ACTIVE)</span>
+          </button>
+        </div>
+
+        <!-- Benchmark Execution Progress Bar (Shown during benchmark) -->
+        <div class="evo-progress-container" id="evo-progress-container" style="display:none;">
+          <div class="evo-progress-header">
+            <span id="evo-progress-stage-text">Profiling DAG bottlenecks...</span>
+            <span id="evo-progress-pct-text" style="font-family:var(--font-mono); font-weight:700; color:var(--primary-bright);">0%</span>
+          </div>
+          <div class="evo-progress-bar-bg">
+            <div class="evo-progress-bar-fill" id="evo-progress-fill" style="width:0%;"></div>
+          </div>
+        </div>
+
+        <!-- Main Comparative Grid: Before vs After DAG Architecture -->
+        <div class="evo-comparison-grid">
+
+          <!-- BEFORE Card: Bottleneck Architecture -->
+          <div class="evo-dag-card before-card">
+            <div class="evo-card-topbar">
+              <div class="evo-card-badge before-badge">
+                <i class="fa-solid fa-hourglass-half"></i> BEFORE MUTATION (GEN-01)
+              </div>
+              <span class="evo-perf-chip error-chip"><i class="fa-solid fa-triangle-exclamation"></i> BOTTLENECK DETECTED</span>
+            </div>
+
+            <!-- Visual Flow Diagram -->
+            <div class="evo-visual-dag">
+              <div class="evo-node-item">
+                <div class="node-icon-box"><i class="fa-solid fa-satellite-dish"></i></div>
+                <div class="node-details">
+                  <span class="node-name">1. Ingress Telemetry Gateway</span>
+                  <span class="node-stat">35ms latency • Stable</span>
+                </div>
+              </div>
+
+              <div class="evo-dag-arrow"><i class="fa-solid fa-arrow-down"></i></div>
+
+              <div class="evo-node-item bottleneck-node">
+                <div class="node-icon-box alert-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                <div class="node-details">
+                  <span class="node-name">2. Root Cause Diagnostic SRE</span>
+                  <span class="node-stat alert-stat">+380ms Latency • Single Worker Overload</span>
+                </div>
+                <span class="bottleneck-tag">CRITICAL PATH</span>
+              </div>
+
+              <div class="evo-dag-arrow"><i class="fa-solid fa-arrow-down"></i></div>
+
+              <div class="evo-node-item blocked-node">
+                <div class="node-icon-box"><i class="fa-solid fa-database"></i></div>
+                <div class="node-details">
+                  <span class="node-name">3. Database Connection Drain</span>
+                  <span class="node-stat">Blocked Waiting for SRE • 260ms</span>
+                </div>
+              </div>
+
+              <div class="evo-dag-arrow"><i class="fa-solid fa-arrow-down"></i></div>
+
+              <div class="evo-node-item">
+                <div class="node-icon-box"><i class="fa-solid fa-shield-check"></i></div>
+                <div class="node-details">
+                  <span class="node-name">4. Verification & Alert Dispatch</span>
+                  <span class="node-stat">80ms • Cascaded Delay</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Bottleneck Diagnostic Information Box -->
+            <div class="bottleneck-info">
+              <span class="bottleneck-target" id="bottleneck-target-text">Root Cause Specialist → Database Balancer</span>
+              <p id="bottleneck-desc-text">High dependency load on single database worker caused cascading 380ms execution bottleneck. Queue depth reached 420 items.</p>
+              <div class="topo-code-preview">
+                <span class="topo-label">SEQUENTIAL EXECUTION PATH:</span>
+                <code id="topo-before-code">Root Cause → DB Drain (Sequential)</code>
+              </div>
+            </div>
+          </div>
+
+          <!-- AFTER Card: Self-Evolved Parallel Architecture -->
+          <div class="evo-dag-card after-card upgraded">
+            <div class="evo-card-topbar">
+              <div class="evo-card-badge after-badge">
+                <i class="fa-solid fa-sparkles"></i> AFTER MUTATION (GEN-03 ACTIVE)
+              </div>
+              <span class="evo-perf-chip success-chip"><i class="fa-solid fa-circle-check"></i> ZERO BOTTLENECKS</span>
+            </div>
+
+            <!-- Visual Flow Diagram -->
+            <div class="evo-visual-dag">
+              <div class="evo-node-item">
+                <div class="node-icon-box"><i class="fa-solid fa-satellite-dish"></i></div>
+                <div class="node-details">
+                  <span class="node-name">1. Ingress Telemetry Gateway</span>
+                  <span class="node-stat">35ms latency • Stable</span>
+                </div>
+              </div>
+
+              <div class="evo-dag-arrow"><i class="fa-solid fa-arrow-down"></i></div>
+
+              <!-- Parallel Sharded Cluster Box -->
+              <div class="evo-parallel-cluster">
+                <div class="cluster-label">
+                  <i class="fa-solid fa-arrows-split-up-and-left"></i>
+                  <span>PARALLEL WORKER SHARD (AUTOSCALED 3X)</span>
+                  <span class="cluster-tag">MUTATED</span>
+                </div>
+                <div class="cluster-pods">
+                  <div class="cluster-pod">
+                    <i class="fa-solid fa-microchip"></i>
+                    <span>Pod A: SRE Leak Profiler</span>
+                  </div>
+                  <div class="cluster-pod">
+                    <i class="fa-solid fa-server"></i>
+                    <span>Pod B: PgBouncer Rebalancer</span>
+                  </div>
+                  <div class="cluster-pod">
+                    <i class="fa-solid fa-traffic-light"></i>
+                    <span>Pod C: Ingress Canary Controller</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="evo-dag-arrow"><i class="fa-solid fa-arrow-down"></i></div>
+
+              <!-- Async Qdrant Intermediary -->
+              <div class="evo-node-item qdrant-node">
+                <div class="node-icon-box qdrant-icon"><i class="fa-solid fa-brain"></i></div>
+                <div class="node-details">
+                  <span class="node-name">Qdrant 384-Dim RAG Memory Intermediary</span>
+                  <span class="node-stat" style="color:#a78bfa;">1.4ms Cosine Similarity Retrieval • FastEmbed</span>
+                </div>
+              </div>
+
+              <div class="evo-dag-arrow"><i class="fa-solid fa-arrow-down"></i></div>
+
+              <div class="evo-node-item optimized-node">
+                <div class="node-icon-box"><i class="fa-solid fa-shield-check"></i></div>
+                <div class="node-details">
+                  <span class="node-name">3. Consensus Gate & Automated Rollback</span>
+                  <span class="node-stat" style="color:var(--color-success);">Converged in 150ms • Zero Transaction Loss</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Upgraded Topology Information Box -->
+            <div class="bottleneck-info upgraded-info">
+              <span class="bottleneck-target" style="color:var(--color-success);">
+                <i class="fa-solid fa-circle-check"></i> Topology State: Optimized (Fitness: 0.942)
+              </span>
+              <p>Autonomous Organization Engine split single worker into parallel connection drain pods with asynchronous memory streaming.</p>
+              <div class="topo-code-preview">
+                <span class="topo-label">PARALLEL EXECUTION PATH:</span>
+                <code id="topo-after-code">[Root Cause + Telemetry RAG] → Parallel DB Drain (64% Faster)</code>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Live Autonomous Mutation Audit Log Terminal -->
+        <div class="evo-terminal-card">
+          <div class="evo-terminal-header">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <i class="fa-solid fa-terminal" style="color:#10b981;"></i>
+              <span style="font-family:var(--font-mono); font-size:0.75rem; font-weight:700; color:#fff;">AUTONOMOUS MUTATION AUDIT STREAM</span>
+              <span class="rt-terminal-live-tag"><span class="rt-dot"></span> STREAMING</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:12px;">
+              <span style="font-size:0.7rem; color:#94a3b8; font-family:var(--font-mono);">GRAPH HASH: <strong style="color:var(--primary-bright);">0x7E3A_MUTATED</strong></span>
+              <button class="evo-terminal-clear-btn" id="clear-evo-terminal-btn" title="Clear terminal logs"><i class="fa-solid fa-trash-can"></i></button>
+            </div>
+          </div>
+          <div class="evo-terminal-logs" id="evolution-terminal-feed">
+            <!-- Dynamic logs populated by JS -->
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Architecture Spec Export Modal -->
+      <div class="cc-modal-backdrop" id="evo-spec-modal-backdrop" style="display:none;">
+        <div class="cc-modal" style="max-width:680px;">
+          <div class="cc-modal-header">
+            <h3><i class="fa-solid fa-file-code"></i> Evolved Agent Organization Specification</h3>
+            <button class="cc-modal-close" id="evo-spec-close-btn">&times;</button>
+          </div>
+          <div class="cc-modal-body">
+            <p style="font-size:0.78rem; color:var(--text-muted); margin-bottom:12px;">
+              Machine-readable DAG topology manifest generated by the Autonomous Organization Engine. Compatible with Lyzr Agentic Orchestration and Qdrant persistence.
+            </p>
+            <pre id="evo-spec-yaml-code" style="background:#07080c; border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:14px; font-family:var(--font-mono); font-size:0.72rem; color:#a78bfa; overflow-x:auto; max-height:300px;"></pre>
+          </div>
+          <div class="cc-modal-footer">
+            <button class="cc-btn" id="evo-spec-copy-btn"><i class="fa-solid fa-copy"></i> COPY TO CLIPBOARD</button>
+            <button class="cc-btn cc-btn-primary" id="evo-spec-done-btn">DONE</button>
+          </div>
+        </div>
       </div>
     </section>
 

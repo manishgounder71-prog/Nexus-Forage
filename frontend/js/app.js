@@ -772,15 +772,35 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
 
+      // Scenario-adaptive evolution details
+      const lcPrompt = (promptText || '').toLowerCase();
       const bottleneckTarget = document.getElementById('bottleneck-target-text');
       const bottleneckDesc = document.getElementById('bottleneck-desc-text');
       const topoBefore = document.getElementById('topo-before-code');
       const topoAfter = document.getElementById('topo-after-code');
 
-      if (bottleneckTarget) bottleneckTarget.innerText = `Root Cause Specialist → Database Balancer`;
-      if (bottleneckDesc) bottleneckDesc.innerText = `Agent topology optimized by Adaptive Organization Engine: Split single database worker into parallel connection drain pods.`;
-      if (topoBefore) topoBefore.innerText = `Root Cause → DB Drain (Sequential)`;
-      if (topoAfter) topoAfter.innerText = `[Root Cause + Telemetry RAG] → Parallel DB Drain (64% Faster)`;
+      if (lcPrompt.includes('grid') || lcPrompt.includes('substation') || lcPrompt.includes('scada') || lcPrompt.includes('power')) {
+        if (bottleneckTarget) bottleneckTarget.innerText = 'SCADA Security Lead → Grid Infrastructure Division';
+        if (bottleneckDesc) bottleneckDesc.innerText = 'High dependency load on single SCADA Specialist caused 380ms execution bottleneck during Substation 04 isolation.';
+        if (topoBefore) topoBefore.innerText = 'SCADA Specialist → Grid Balancer (Sequential)';
+        if (topoAfter) topoAfter.innerText = '[SCADA A + SCADA B] → Key Validator → Grid Balancer (72% Faster)';
+      } else if (lcPrompt.includes('payment') || lcPrompt.includes('fintech') || lcPrompt.includes('stripe') || lcPrompt.includes('checkout') || lcPrompt.includes('fraud')) {
+        if (bottleneckTarget) bottleneckTarget.innerText = 'Fraud Evaluation Engine → Settlement Gateway';
+        if (bottleneckDesc) bottleneckDesc.innerText = 'Synchronous fraud scoring locked transaction threads, accumulating 510ms queue backlog under 15k req/sec checkout load.';
+        if (topoBefore) topoBefore.innerText = 'Risk Scoring → Payment Gateway (Synchronous)';
+        if (topoAfter) topoAfter.innerText = '[Risk Shard 1 + 2] → Async Ledger Cache (68% Faster)';
+      } else if (lcPrompt.includes('exam') || lcPrompt.includes('university') || lcPrompt.includes('student')) {
+        if (bottleneckTarget) bottleneckTarget.innerText = 'Proctoring Video Stream → Integrity Auditor';
+        if (bottleneckDesc) bottleneckDesc.innerText = 'Single frame processor bottlenecked 25,000 student camera feeds during concurrent exam submission spike.';
+        if (topoBefore) topoBefore.innerText = 'Video Parser → Proctor Auditor (Sequential)';
+        if (topoAfter) topoAfter.innerText = '[Edge Frame Samplers A + B] → Anomaly Classifier (81% Faster)';
+      } else {
+        // Default / Software Incident
+        if (bottleneckTarget) bottleneckTarget.innerText = 'Root Cause Specialist → Database Balancer';
+        if (bottleneckDesc) bottleneckDesc.innerText = 'High dependency load on single database worker caused cascading 380ms execution bottleneck. Queue depth reached 420 items.';
+        if (topoBefore) topoBefore.innerText = 'Root Cause → DB Drain (Sequential)';
+        if (topoAfter) topoAfter.innerText = '[Root Cause + Telemetry RAG] → Parallel DB Drain (64% Faster)';
+      }
 
       renderOrganizationView(promptText);
       renderParliamentView(promptText);
@@ -820,29 +840,241 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Topology Evolution Trigger Button Listener
+  // ── AI Team Self-Improvement & Evolution Controls Suite ──
+  const evoTerminal = document.getElementById('evolution-terminal-feed');
+  function addEvoLog(badgeType, badgeText, message) {
+    if (!evoTerminal) return;
+    const timeNow = new Date().toTimeString().split(' ')[0];
+    const row = document.createElement('div');
+    row.className = 'evo-log-row';
+    row.innerHTML = `
+      <span class="evo-log-time">${timeNow} UTC</span>
+      <span class="evo-log-badge ${badgeType}">[${badgeText}]</span>
+      <span class="evo-log-text">${message}</span>
+    `;
+    evoTerminal.prepend(row);
+    if (evoTerminal.children.length > 50) {
+      evoTerminal.removeChild(evoTerminal.lastChild);
+    }
+  }
+
+  // Populate initial seed audit logs
+  if (evoTerminal && evoTerminal.children.length === 0) {
+    addEvoLog('applied', 'GEN-03_ACTIVE', 'Topology hot-swapped: 3x parallel worker pods running with zero transaction dropouts.');
+    addEvoLog('qdrant', 'QDRANT_REFLECT', 'Post-mutation architecture hash 0x7E3A indexed into reflection_memory (384-dim).');
+    addEvoLog('mutation', 'LYZR_MUTATION', 'Synthesized mutation candidate: Sharded database connection drain pods.');
+    addEvoLog('bottleneck', 'BOTTLENECK', 'Execution telemetry detected +380ms queue backlog at single database worker.');
+  }
+
+  // Clear Terminal Button
+  document.getElementById('clear-evo-terminal-btn')?.addEventListener('click', () => {
+    if (evoTerminal) evoTerminal.innerHTML = '';
+    if (window.nexusAudio) window.nexusAudio.playClick();
+  });
+
+  // Generation Timeline Selector
+  document.querySelectorAll('.evo-gen-pill').forEach(pill => {
+    pill.addEventListener('click', () => {
+      document.querySelectorAll('.evo-gen-pill').forEach(p => {
+        p.classList.remove('active');
+        p.querySelector('.gen-tag')?.classList.remove('active-tag');
+      });
+      pill.classList.add('active');
+      pill.querySelector('.gen-tag')?.classList.add('active-tag');
+
+      const gen = pill.getAttribute('data-gen');
+      const latEl = document.getElementById('evo-kpi-latency');
+      const workEl = document.getElementById('evo-kpi-workers');
+      const tokEl = document.getElementById('evo-kpi-tokens');
+      const fitEl = document.getElementById('evo-kpi-fitness');
+
+      if (gen === '1') {
+        if (latEl) { latEl.innerText = '0.0% (BASE)'; latEl.className = 'evo-kpi-val'; }
+        if (workEl) workEl.innerText = '4 WORKERS';
+        if (tokEl) tokEl.innerText = '0.0% SAVINGS';
+        if (fitEl) fitEl.innerText = '0.412 / 1.0';
+        addEvoLog('bottleneck', 'TOPOLOGY_INSPECT', 'Inspecting GEN-01 Baseline: Sequential execution suffering from queue saturation.');
+      } else if (gen === '2') {
+        if (latEl) { latEl.innerText = '-38.4%'; latEl.className = 'evo-kpi-val highlight-amber'; }
+        if (workEl) workEl.innerText = '5 WORKERS';
+        if (tokEl) tokEl.innerText = '+18.2%';
+        if (fitEl) fitEl.innerText = '0.781 / 1.0';
+        addEvoLog('mutation', 'TOPOLOGY_INSPECT', 'Inspecting GEN-02: Parliamentary deliberation consensus reached; moderate parallelism.');
+      } else {
+        if (latEl) { latEl.innerText = '-64.3%'; latEl.className = 'evo-kpi-val highlight-green'; }
+        if (workEl) workEl.innerText = '7 SHARDS';
+        if (tokEl) tokEl.innerText = '+41.8%';
+        if (fitEl) fitEl.innerText = '0.942 / 1.0';
+        addEvoLog('applied', 'TOPOLOGY_INSPECT', 'Active GEN-03: Autonomous parallel sharding with Qdrant vector memory intermediary.');
+      }
+
+      if (window.nexusAudio) window.nexusAudio.playClick();
+    });
+  });
+
+  // Revert Button
+  document.getElementById('revert-evolution-btn')?.addEventListener('click', () => {
+    if (window.nexusAudio) window.nexusAudio.playAlert();
+    addEvoLog('bottleneck', 'ROLLBACK', 'Topology rollback triggered: Restored to GEN-02 checkpoint safely.');
+    const gen2Pill = document.querySelector('.evo-gen-pill[data-gen="2"]');
+    if (gen2Pill) gen2Pill.click();
+  });
+
+  // Architecture Spec Export Modal
+  const specModal = document.getElementById('evo-spec-modal-backdrop');
+  const specCode = document.getElementById('evo-spec-yaml-code');
+
+  function generateTopologySpecYAML() {
+    const currentInput = document.getElementById('crisis-prompt-input')?.value || 'Production Deployment Incident';
+    return `# NEXUS FORGE — Autonomous Organization Topology Spec
+# Generated by Adaptive Evolution Engine (Lyzr x Qdrant)
+version: "nexus.ai/v3"
+manifest_id: "org_spec_0x7E3A"
+timestamp: "${new Date().toISOString()}"
+scenario: "${currentInput.replace(/"/g, '')}"
+generation: 4
+convergence_state: "CONVERGED"
+fitness_score: 0.942
+metrics:
+  latency_reduction: "-64.3%"
+  execution_speed: "150ms"
+  worker_concurrency: "7 sharded pods"
+  token_efficiency_gain: "+41.8%"
+  transaction_dropout_rate: "0.00%"
+
+topology:
+  ingress:
+    node_id: "ingress_telemetry_gateway"
+    type: "event_router"
+    latency_ms: 35
+  sharded_workers:
+    cluster_id: "parallel_worker_shard_3x"
+    autoscaled_pods:
+      - id: "pod_a_leak_profiler"
+        role: "SRE Memory & Thread Inspection"
+      - id: "pod_b_pgbouncer_rebalancer"
+        role: "Connection Pool Rebalancer"
+      - id: "pod_c_ingress_canary_ctrl"
+        role: "Traffic Bleed & Pod Drain"
+  memory_layer:
+    backend: "Qdrant Vector Engine v3.0"
+    collection: "reflection_memory"
+    embedding_dim: 384
+    fastembed_model: "BAAI/bge-small-en-v1.5"
+    query_latency_ms: 1.4
+  consensus_gate:
+    policy: "supermajority_two_thirds"
+    quorum_agents: ["SRE Lead", "Threat Analyst", "Comms Officer"]
+    fallback_strategy: "Plan B (Adversarially Hardened)"`;
+  }
+
+  document.getElementById('export-evolution-spec-btn')?.addEventListener('click', () => {
+    if (specCode) specCode.textContent = generateTopologySpecYAML();
+    if (specModal) specModal.style.display = 'flex';
+    if (window.nexusAudio) window.nexusAudio.playClick();
+  });
+
+  document.getElementById('evo-spec-close-btn')?.addEventListener('click', () => {
+    if (specModal) specModal.style.display = 'none';
+  });
+  document.getElementById('evo-spec-done-btn')?.addEventListener('click', () => {
+    if (specModal) specModal.style.display = 'none';
+  });
+  specModal?.addEventListener('click', e => {
+    if (e.target === specModal) specModal.style.display = 'none';
+  });
+
+  document.getElementById('evo-spec-copy-btn')?.addEventListener('click', () => {
+    if (specCode) {
+      navigator.clipboard.writeText(specCode.textContent);
+      const copyBtn = document.getElementById('evo-spec-copy-btn');
+      if (copyBtn) {
+        copyBtn.innerHTML = '<i class="fa-solid fa-check"></i> COPIED!';
+        setTimeout(() => {
+          copyBtn.innerHTML = '<i class="fa-solid fa-copy"></i> COPY TO CLIPBOARD';
+        }, 1800);
+      }
+      if (window.nexusAudio) window.nexusAudio.playClick();
+    }
+  });
+
+  // Benchmark Runner
   const evolveBtn = document.getElementById('trigger-evolution-btn');
   if (evolveBtn) {
     evolveBtn.addEventListener('click', () => {
-      if (window.nexusAudio) window.nexusAudio.playConsensus();
+      if (window.nexusAudio) window.nexusAudio.playVoiceActivation();
 
-      evolveBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>RESTRUCTURING AGENT TOPOLOGY...</span>';
-      evolveBtn.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
-      evolveBtn.style.borderColor = '#10b981';
+      evolveBtn.disabled = true;
+      evolveBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>MUTATING TOPOLOGY...</span>';
+
+      const progressContainer = document.getElementById('evo-progress-container');
+      const progressFill = document.getElementById('evo-progress-fill');
+      const progressStage = document.getElementById('evo-progress-stage-text');
+      const progressPct = document.getElementById('evo-progress-pct-text');
+
+      if (progressContainer) progressContainer.style.display = 'block';
+
+      // Step 1: Profiling
+      if (progressFill) progressFill.style.width = '20%';
+      if (progressPct) progressPct.innerText = '20%';
+      if (progressStage) progressStage.innerText = 'Step 1/5: Profiling DAG critical path latency...';
+      addEvoLog('bottleneck', 'PROFILING', 'Isolated critical path bottleneck at Node #2 (Queue depth: 420, +380ms).');
 
       setTimeout(() => {
-        evolveBtn.innerHTML = '<i class="fa-solid fa-check"></i> <span>TOPOLOGY EVOLUTION APPLIED (OPTIMIZED)</span>';
-        document.getElementById('sys-state-text').innerText = 'TOPOLOGY_OPTIMIZED';
-        document.getElementById('sys-state-text').style.color = 'var(--color-success)';
+        // Step 2: Mutation Synthesis
+        if (progressFill) progressFill.style.width = '45%';
+        if (progressPct) progressPct.innerText = '45%';
+        if (progressStage) progressStage.innerText = 'Step 2/5: Synthesizing parallel worker shards via Lyzr Engine...';
+        addEvoLog('mutation', 'MUTATION', 'Generated 4 topology candidates; selected 3-pod parallel shard model.');
+        if (window.nexusAudio) window.nexusAudio.playChime(659.25, 'triangle', 0.15);
+      }, 700);
 
-        logStream('EVOLUTION', 'Autonomous Organization Evolution Applied: Forked bottleneck division into parallel workers. Reduced execution latency by 64% (420ms → 150ms).');
+      setTimeout(() => {
+        // Step 3: Monte Carlo trial
+        if (progressFill) progressFill.style.width = '70%';
+        if (progressPct) progressPct.innerText = '70%';
+        if (progressStage) progressStage.innerText = 'Step 3/5: Running 1,000x Monte Carlo stress trials...';
+        addEvoLog('mutation', 'BENCHMARK', 'Simulated 1,000x load spikes: 0% transaction loss confirmed (Fitness: 0.942).');
+        if (window.nexusAudio) window.nexusAudio.playChime(784, 'sine', 0.2);
+      }, 1400);
 
-        const upgradedBox = document.querySelector('.topo-box.upgraded');
-        if (upgradedBox) {
-          upgradedBox.style.boxShadow = '0 0 25px rgba(16, 185, 129, 0.4)';
-          upgradedBox.style.borderColor = 'var(--color-success)';
+      setTimeout(() => {
+        // Step 4: Hot-reload DAG
+        if (progressFill) progressFill.style.width = '90%';
+        if (progressPct) progressPct.innerText = '90%';
+        if (progressStage) progressStage.innerText = 'Step 4/5: Hot-reloading active DAG nodes in-flight...';
+        addEvoLog('applied', 'HOT_SWAP', 'Applied topology mutation in 8ms without dropping active mission state.');
+      }, 2100);
+
+      setTimeout(() => {
+        // Step 5: Qdrant reflection sync
+        if (progressFill) progressFill.style.width = '100%';
+        if (progressPct) progressPct.innerText = '100%';
+        if (progressStage) progressStage.innerText = 'Step 5/5: Synchronizing reflection_memory in Qdrant v3.0...';
+        addEvoLog('qdrant', 'QDRANT_SYNC', 'Successfully upserted post-mortem vector 0x7E3A into reflection_memory.');
+        if (window.nexusAudio) window.nexusAudio.playConsensus();
+
+        evolveBtn.disabled = false;
+        evolveBtn.innerHTML = '<i class="fa-solid fa-check"></i> <span>MUTATION APPLIED (OPTIMIZED)</span>';
+        evolveBtn.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
+        evolveBtn.style.borderColor = '#10b981';
+
+        const sysState = document.getElementById('sys-state-text');
+        if (sysState) {
+          sysState.innerText = 'TOPOLOGY_OPTIMIZED';
+          sysState.style.color = 'var(--color-success)';
         }
-      }, 1200);
+
+        const upgradedCard = document.querySelector('.evo-dag-card.after-card');
+        if (upgradedCard) {
+          upgradedCard.style.boxShadow = '0 0 35px rgba(16, 185, 129, 0.4)';
+          upgradedCard.style.borderColor = '#10b981';
+        }
+
+        setTimeout(() => {
+          if (progressContainer) progressContainer.style.display = 'none';
+        }, 2500);
+      }, 2800);
     });
   }
 
