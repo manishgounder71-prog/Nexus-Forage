@@ -19,7 +19,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   
   <!-- Main Stylesheet -->
-  <link rel="stylesheet" href="css/styles.css?v=20260907_brandfix">
+  <link rel="stylesheet" href="css/styles.css?v=20260907_header2tier_clean">
 </head>
 <body class="nexus-app dark-theme">
   <!-- Ambient Audio Indicator & Controls -->
@@ -30,110 +30,112 @@
   </div>
 
   <!-- Top Navigation Header -->
+  <!-- Top Navigation Header -->
   <header class="nexus-header">
-    <div class="brand-container">
-      <div class="brand-logo">
-        <div class="logo-core-dot"></div>
-        <div class="logo-ring"></div>
+    
+    <!-- Top Row: Brand & Live Cluster Telemetry -->
+    <div class="header-top-row">
+      <div class="brand-container">
+        <div class="brand-logo">
+          <div class="logo-core-dot"></div>
+          <div class="logo-ring"></div>
+        </div>
+        <div class="brand-text">
+          <span class="brand-name">NEXUS FORGE</span>
+          <span class="brand-tagline">ADAPTIVE AI COMMAND CENTER</span>
+        </div>
       </div>
-      <div class="brand-text">
-        <span class="brand-name">NEXUS FORGE</span>
-        <span class="brand-tagline">ADAPTIVE AI COMMAND CENTER</span>
+
+      <!-- Header Tech Stack Pills + Telemetry -->
+      <div class="header-telemetry" style="display:flex; align-items:center; gap:8px;">
+        <!-- Tech Stack Badges -->
+        <div class="sponsor-badges-group" style="display:flex; align-items:center; gap:5px; padding-right:8px; border-right:1px solid var(--border-glass);">
+          <span title="Omi Voice Device — Crisis Voice Input" class="sponsor-pill omi-pill" style="display:flex;align-items:center;gap:4px;background:rgba(236,72,153,0.12);border:1px solid rgba(236,72,153,0.35);padding:2px 8px;border-radius:20px;font-size:0.65rem;font-family:var(--font-mono);font-weight:700;color:#ec4899;">
+            <i class="fa-solid fa-microphone"></i> OMI
+          </span>
+          <span title="Lyzr — AI Agent Orchestration" class="sponsor-pill lyzr-pill" style="display:flex;align-items:center;gap:4px;background:rgba(139,92,246,0.12);border:1px solid rgba(139,92,246,0.35);padding:2px 8px;border-radius:20px;font-size:0.65rem;font-family:var(--font-mono);font-weight:700;color:#a78bfa;">
+            <i class="fa-solid fa-robot"></i> LYZR
+          </span>
+          <span title="Qdrant — Vector Memory Database" class="sponsor-pill qdrant-pill" style="display:flex;align-items:center;gap:4px;background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.35);padding:2px 8px;border-radius:20px;font-size:0.65rem;font-family:var(--font-mono);font-weight:700;color:#10b981;">
+            <i class="fa-solid fa-database"></i> QDRANT
+          </span>
+        </div>
+
+        <div class="system-status" style="display:flex; align-items:center; gap:5px; background:rgba(255,255,255,0.03); padding:4px 10px; border-radius:var(--radius-sm); border:1px solid var(--border-glass); font-size:0.7rem; font-family:var(--font-mono);">
+          <span class="status-indicator active"></span>
+          <span class="status-label">STATUS: <strong id="sys-state-text" style="color:var(--color-success);">READY</strong></span>
+        </div>
+
+        <!-- Cloud / Local Backend Endpoint Indicator & Switcher -->
+        <div id="backend-endpoint-pill" class="telemetry-pill-hud" title="Backend Server (Render / Local). Click to configure." style="cursor:pointer; border-color:rgba(139,92,246,0.4); background:rgba(139,92,246,0.1); padding:4px 10px; border-radius:var(--radius-sm); border:1px solid rgba(139,92,246,0.3); font-size:0.7rem; font-family:var(--font-mono); display:flex; align-items:center; gap:5px;">
+          <i class="fa-solid fa-server" id="backend-endpoint-icon" style="color:#a78bfa;"></i>
+          <span id="backend-endpoint-label">BACKEND</span>
+        </div>
+
+        <!-- Live Telemetry HUD -->
+        <div id="telemetry-latency" class="telemetry-pill-hud" title="Real-time Pipeline Latency" style="display:flex; align-items:center; gap:4px; background:rgba(255,255,255,0.03); padding:4px 8px; border-radius:var(--radius-sm); border:1px solid var(--border-glass); font-size:0.7rem; font-family:var(--font-mono);">
+          <i class="fa-solid fa-bolt" style="color:#f59e0b;"></i>
+          <span id="telemetry-latency-val">28ms</span>
+        </div>
+        <div id="telemetry-consensus" class="telemetry-pill-hud" title="Swarm Consensus Index" style="display:flex; align-items:center; gap:4px; background:rgba(255,255,255,0.03); padding:4px 8px; border-radius:var(--radius-sm); border:1px solid var(--border-glass); font-size:0.7rem; font-family:var(--font-mono);">
+          <i class="fa-solid fa-scale-balanced" style="color:#10b981;"></i>
+          <span id="telemetry-consensus-val">95.4%</span>
+        </div>
+
+        <!-- Action Buttons -->
+        <button id="export-dossier-btn" class="header-hud-action-btn" title="Export Comprehensive Crisis Incident Dossier">
+          <i class="fa-solid fa-file-export"></i>
+          <span>Export Dossier</span>
+        </button>
+
+        <button id="kbd-legend-btn" class="header-hud-action-btn icon-btn" title="Keyboard Shortcuts Guide (?)">
+          <i class="fa-solid fa-keyboard"></i>
+        </button>
       </div>
     </div>
 
-    <!-- Main Navigation Bar -->
-    <nav class="nexus-nav">
-      <button class="nav-item active" data-view="command-center">
-        <i class="fa-solid fa-compass"></i>
-        <span>Command Center</span>
-      </button>
-      <button class="nav-item" data-view="live-mission">
-        <i class="fa-solid fa-diagram-project"></i>
-        <span>Live Mission</span>
-        <span class="badge live-badge">LIVE</span>
-      </button>
-      <button class="nav-item" data-view="ai-organization">
-        <i class="fa-solid fa-users-gear"></i>
-        <span>AI Organization</span>
-      </button>
-      <button class="nav-item" data-view="agent-parliament">
-        <i class="fa-solid fa-gavel"></i>
-        <span>Parliament</span>
-      </button>
-      <button class="nav-item" data-view="red-team">
-        <i class="fa-solid fa-shield-halved"></i>
-        <span>Red Team</span>
-      </button>
-      <button class="nav-item" data-view="simulation-engine">
-        <i class="fa-solid fa-chart-network"></i>
-        <span>Simulation</span>
-      </button>
-      <button class="nav-item" data-view="memory-intelligence">
-        <i class="fa-solid fa-brain"></i>
-        <span>Memory</span>
-      </button>
-      <button class="nav-item" data-view="org-evolution">
-        <i class="fa-solid fa-dna"></i>
-        <span>Evolution</span>
-      </button>
-      <button class="nav-item" data-view="connector-center">
-        <i class="fa-solid fa-plug-circle-bolt"></i>
-        <span>Connectors</span>
-        <span class="badge live-badge">OPS</span>
-      </button>
-    </nav>
-
-    <!-- Header Tech Stack Pills + Telemetry -->
-    <div class="header-telemetry" style="display:flex; align-items:center; gap:10px;">
-
-      <!-- Tech Stack Badges -->
-      <div style="display:flex; align-items:center; gap:6px; padding-right:10px; border-right:1px solid var(--border-glass);">
-        <span title="Omi Voice Device — Crisis Voice Input" style="display:flex;align-items:center;gap:5px;background:rgba(236,72,153,0.12);border:1px solid rgba(236,72,153,0.35);padding:3px 10px;border-radius:20px;font-size:0.68rem;font-family:var(--font-mono);font-weight:700;color:#ec4899;">
-          <i class="fa-solid fa-microphone"></i> OMI
-        </span>
-        <span title="Lyzr — AI Agent Orchestration" style="display:flex;align-items:center;gap:5px;background:rgba(139,92,246,0.12);border:1px solid rgba(139,92,246,0.35);padding:3px 10px;border-radius:20px;font-size:0.68rem;font-family:var(--font-mono);font-weight:700;color:#a78bfa;">
-          <i class="fa-solid fa-robot"></i> LYZR
-        </span>
-        <span title="Qdrant — Vector Memory Database" style="display:flex;align-items:center;gap:5px;background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.35);padding:3px 10px;border-radius:20px;font-size:0.68rem;font-family:var(--font-mono);font-weight:700;color:#10b981;">
-          <i class="fa-solid fa-database"></i> QDRANT
-        </span>
-      </div>
-
-      <div class="system-status">
-        <span class="status-indicator active"></span>
-        <span class="status-label">STATUS: <strong id="sys-state-text">READY</strong></span>
-      </div>
-      <div class="qdrant-status" title="Qdrant Vector Memory — embeddings indexed">
-        <i class="fa-solid fa-database"></i>
-        <span>QDRANT: <span id="qdrant-vectors-count">14,290</span> VECS</span>
-      </div>
-
-      <!-- Cloud / Local Backend Endpoint Indicator & Switcher -->
-      <div id="backend-endpoint-pill" class="telemetry-pill-hud" title="Backend Server (Render / Local). Click to configure." style="cursor:pointer; border-color:rgba(139,92,246,0.4); background:rgba(139,92,246,0.1);">
-        <i class="fa-solid fa-server" id="backend-endpoint-icon" style="color:#a78bfa;"></i>
-        <span id="backend-endpoint-label">BACKEND</span>
-      </div>
-
-      <!-- Live Telemetry HUD -->
-      <div id="telemetry-latency" class="telemetry-pill-hud" title="Real-time Pipeline Latency">
-        <i class="fa-solid fa-bolt" style="color:#f59e0b;"></i>
-        <span id="telemetry-latency-val">28ms</span>
-      </div>
-      <div id="telemetry-consensus" class="telemetry-pill-hud" title="Swarm Consensus Index">
-        <i class="fa-solid fa-scale-balanced" style="color:#10b981;"></i>
-        <span id="telemetry-consensus-val">95.4%</span>
-      </div>
-
-      <!-- Action Buttons -->
-      <button id="export-dossier-btn" class="header-hud-action-btn" title="Export Comprehensive Crisis Incident Dossier">
-        <i class="fa-solid fa-file-export"></i>
-        <span>Export Dossier</span>
-      </button>
-
-      <button id="kbd-legend-btn" class="header-hud-action-btn icon-btn" title="Keyboard Shortcuts Guide (?)">
-        <i class="fa-solid fa-keyboard"></i>
-      </button>
+    <!-- Bottom Row: Dedicated Full-Width Navigation Bar (All 9 Sections) -->
+    <div class="header-nav-row">
+      <nav class="nexus-nav">
+        <button class="nav-item active" data-view="command-center">
+          <span class="nav-emoji">🎯</span>
+          <span>Command Center</span>
+        </button>
+        <button class="nav-item" data-view="live-mission">
+          <span class="nav-emoji">⚡</span>
+          <span>Live Mission</span>
+          <span class="badge live-badge">LIVE</span>
+        </button>
+        <button class="nav-item" data-view="ai-organization">
+          <span class="nav-emoji">🤖</span>
+          <span>AI Organization</span>
+        </button>
+        <button class="nav-item" data-view="agent-parliament">
+          <span class="nav-emoji">🏛️</span>
+          <span>Parliament</span>
+        </button>
+        <button class="nav-item" data-view="red-team">
+          <span class="nav-emoji">🛡️</span>
+          <span>Red Team</span>
+        </button>
+        <button class="nav-item" data-view="simulation-engine">
+          <span class="nav-emoji">🎮</span>
+          <span>Simulation</span>
+        </button>
+        <button class="nav-item" data-view="memory-intelligence">
+          <span class="nav-emoji">🌌</span>
+          <span>Memory</span>
+        </button>
+        <button class="nav-item" data-view="org-evolution">
+          <span class="nav-emoji">🧬</span>
+          <span>Evolution</span>
+        </button>
+        <button class="nav-item" data-view="connector-center">
+          <span class="nav-emoji">🔌</span>
+          <span>Connectors</span>
+          <span class="badge live-badge">OPS</span>
+        </button>
+      </nav>
     </div>
 
   </header>
