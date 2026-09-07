@@ -7,6 +7,10 @@ command input (Omi), reasons and delegates across a swarm of specialized AI agen
 Built for the **Lyzr × Qdrant × Omi "The Dawn of the Autonomous AI Builder"** hackathon.
 It integrates all three mandatory sponsor technologies end-to-end:
 
+> 🌐 **Live Production Backend**: [https://nexus-forage.onrender.com](https://nexus-forage.onrender.com)  
+> 📖 **Live Interactive API Docs (Swagger UI)**: [https://nexus-forage.onrender.com/docs](https://nexus-forage.onrender.com/docs)  
+> 🩺 **Live Health Probe**: [https://nexus-forage.onrender.com/health](https://nexus-forage.onrender.com/health)
+
 | Pillar | Role in the pipeline | Live path |
 |---|---|---|
 | **Omi** | Real-time microphone voice capture (Web Speech API verbatim STT + Gemini audio transcribe), wake-word activation, `/v4/listen` ambient streaming protocol, automated mission launch | `app/services/omi_service.py` + `/api/v1/missions/voice-ingest` + `/api/v1/missions/omi-webhook` |
