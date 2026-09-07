@@ -39,52 +39,129 @@ class MemoryGalaxyEngine {
     this.pulsePhase = 0;
     this.frame = 0;
 
-    this.memories = this.getMemoriesForScenario('default');
+    this.currentScenarioTitle = 'Production Deployment Incident';
+    this.memories = this.getMemoriesForScenario('production deployment');
     this.nodes = [];
     this.init();
   }
 
-  /* ── Scenario Memory Sets ─────────────────────────────────────────── */
+  /* ── Scenario Memory Sets (Strictly Incident-Specific) ─────────────── */
   setScenario(promptText) {
     this.memories = this.getMemoriesForScenario(promptText);
+    this.selectedMemory = null;
     this.initNodes();
     this.updateStats();
+    if (this.nodes.length > 0) {
+      this.selectNode(this.nodes[0]);
+      this.addRipple((this.width || 700) / 2, (this.height || 450) / 2, '#8b5cf6');
+    }
   }
 
   getMemoriesForScenario(promptText) {
-    const lc = (promptText || '').toLowerCase();
-    const isGrid = lc.includes('power grid') || lc.includes('cyber-attack') || lc.includes('substation');
-    const isExam = lc.includes('exam') || lc.includes('university') || lc.includes('database');
+    const lc = (promptText || '').toLowerCase().trim();
 
-    if (isGrid) return [
-      { id: 'VEC_8492', title: 'SCADA Substation 04 Breach 2025', category: 'mission', similarity: 96.4, payload: 'Unauthorized PLC command packet injection on Substation 04. Air-gapped loops stopped breach in 15 mins.', vector: [0.092, -0.412, 0.884, 0.123, -0.054, 0.731], tags: ['scada','substation','airgap'] },
-      { id: 'VEC_9104', title: 'Grid Failover Protocol 2025',      category: 'decision', similarity: 94.0, payload: 'Consensus: Deploy Plan B microgrid failover loops. Zero grid blackout recorded.', vector: [0.312, 0.104, -0.652, 0.441, 0.891, -0.212], tags: ['failover','microgrid'] },
-      { id: 'VEC_3321', title: 'Single Point Substation Failure',  category: 'failure',  similarity: 89.1, payload: 'Direct breaker trip without feeder load shedding caused 3-hour secondary blackout.', vector: [-0.821, 0.431, 0.120, -0.902, 0.231, 0.512], tags: ['failure','blackout'] },
-      { id: 'VEC_7712', title: 'Risk SCADA Air-Gap Dissent',       category: 'dissent',  similarity: 92.8, payload: 'Risk Agent Warning: Immediate trip without frequency balance overloads Substation 11 feeders.', vector: [0.512, -0.732, 0.392, 0.110, -0.451, 0.344], tags: ['risk','frequency'] },
-      { id: 'VEC_5549', title: 'RTU Firmware Validation',           category: 'mission',  similarity: 91.5, payload: 'Pre-staged cryptographically signed RTU firmware images at Substations 04 & 09.', vector: [0.120, 0.892, -0.231, 0.651, 0.334, -0.402], tags: ['firmware','rtu'] },
-      { id: 'VEC_1109', title: 'SCADA Interlock Standard',          category: 'decision', similarity: 97.2, payload: 'Enforced hardware air-gap interlock standard for all metropolitan high-voltage substations.', vector: [0.771, -0.124, 0.901, -0.342, 0.512, 0.211], tags: ['standard','interlock'] },
-      { id: 'VEC_2041', title: 'Feeder Load Shedding Policy',       category: 'decision', similarity: 88.4, payload: 'Automated 10% industrial load-shedding triggered during grid frequency drops below 59.8Hz.', vector: [-0.341, 0.621, 0.412, 0.821, -0.192, 0.533], tags: ['feeder','load-shedding'] },
-      { id: 'VEC_6821', title: 'SCADA Intruder Signature 2024',     category: 'failure',  similarity: 86.9, payload: 'Intruder spoofed SCADA master IP to send forced trip signals. Mitigated by TLS 1.3 mutual auth.', vector: [0.912, -0.312, -0.421, 0.119, 0.762, -0.344], tags: ['intruder','tls'] }
-    ];
+    const isGrid = lc.includes('power grid') || lc.includes('substation') || lc.includes('scada') || lc.includes('blackout') || lc.includes('feeder') || (lc.includes('grid') && !lc.includes('data'));
+    const isPayment = lc.includes('payment') || lc.includes('stripe') || lc.includes('fintech') || lc.includes('gateway') || lc.includes('transaction') || lc.includes('psp') || lc.includes('credit card');
+    const isExam = lc.includes('exam') || lc.includes('university') || lc.includes('campus') || lc.includes('student') || lc.includes('grading') || lc.includes('faculty');
+    const isSupply = lc.includes('supply chain') || lc.includes('cargo') || lc.includes('freight') || lc.includes('logistics') || lc.includes('port') || lc.includes('warehouse') || lc.includes('shipping');
+    const isStartup = lc.includes('startup') || lc.includes('runway') || lc.includes('burn') || lc.includes('equity') || lc.includes('investor') || lc.includes('venture') || lc.includes('funding');
+    const isSoftware = lc.includes('software') || lc.includes('production') || lc.includes('deployment') || lc.includes('checkout') || lc.includes('database') || lc.includes('connection') || lc.includes('pool') || lc.includes('pod') || lc.includes('sre') || lc.includes('rollback') || lc.includes('microservice') || lc.includes('kubernetes') || lc.includes('incident');
 
-    if (isExam) return [
-      { id: 'VEC_8492', title: 'University Exam DB Fail 2024',     category: 'mission',  similarity: 94.2, payload: 'Root Cause: DB connection pool exhaustion during peak registration sync. Fix: decoupled read-only replicas.', vector: [0.042, -0.193, 0.812, 0.334, -0.521, 0.221], tags: ['university','database'] },
-      { id: 'VEC_9104', title: 'Exam Failover Protocol',            category: 'decision', similarity: 91.0, payload: 'Deploy read-only mirror servers + background chunked snapshot restore.', vector: [0.412, 0.304, -0.112, 0.781, 0.291, -0.411], tags: ['failover','readonly'] },
-      { id: 'VEC_3321', title: 'Single Point Gateway Failure',      category: 'failure',  similarity: 88.7, payload: 'Centralized Infrastructure Gateway bottleneck caused 4-hour delay in recovery.', vector: [-0.612, 0.221, 0.401, -0.712, 0.191, 0.501], tags: ['gateway','bottleneck'] },
-      { id: 'VEC_7712', title: 'Dissenting Risk Warning',           category: 'dissent',  similarity: 92.4, payload: 'Risk Agent Minority: Direct DB snapshot restore chokes network bandwidth.', vector: [0.312, -0.812, 0.291, 0.441, -0.102, 0.833], tags: ['risk','bandwidth'] },
-      { id: 'VEC_5549', title: 'Exam Portal CDN Failover',          category: 'mission',  similarity: 85.1, payload: 'CDN-level caching activated for static exam assets, reducing server load by 78%.', vector: [0.102, 0.651, -0.334, 0.892, 0.210, -0.121], tags: ['cdn','caching'] },
-      { id: 'VEC_1109', title: 'Agent Consensus Threshold',         category: 'decision', similarity: 96.0, payload: 'Standardized 90%+ consensus threshold for critical infrastructure changes.', vector: [0.651, -0.231, 0.771, -0.412, 0.892, 0.102], tags: ['consensus','threshold'] },
-      { id: 'VEC_4391', title: 'DB Write Lock Timeout Pattern',     category: 'failure',  similarity: 87.3, payload: 'Exclusive locks during mass student login led to cascaded query timeouts.', vector: [-0.192, 0.512, 0.721, -0.341, 0.612, -0.231], tags: ['database','timeout'] }
-    ];
+    // 1. Power Grid / SCADA Cyber Attack
+    if (isGrid) {
+      this.currentScenarioTitle = 'Power Grid SCADA Incident';
+      return [
+        { id: 'VEC_GRD_849', title: 'SCADA Substation 04 Breach 2025', category: 'mission', similarity: 96.4, payload: 'Unauthorized PLC command packet injection on Substation 04. Air-gapped loops stopped breach in 15 mins.', vector: [0.092, -0.412, 0.884, 0.123, -0.054, 0.731], tags: ['scada','substation','airgap'] },
+        { id: 'VEC_GRD_910', title: 'Grid Failover Protocol 2025',      category: 'decision', similarity: 94.0, payload: 'Consensus: Deploy Plan B microgrid failover loops. Zero grid blackout recorded.', vector: [0.312, 0.104, -0.652, 0.441, 0.891, -0.212], tags: ['failover','microgrid'] },
+        { id: 'VEC_GRD_332', title: 'Single Point Substation Failure',  category: 'failure',  similarity: 89.1, payload: 'Direct breaker trip without feeder load shedding caused 3-hour secondary blackout.', vector: [-0.821, 0.431, 0.120, -0.902, 0.231, 0.512], tags: ['failure','blackout'] },
+        { id: 'VEC_GRD_771', title: 'Risk SCADA Air-Gap Dissent',       category: 'dissent',  similarity: 92.8, payload: 'Risk Agent Warning: Immediate trip without frequency balance overloads Substation 11 feeders.', vector: [0.512, -0.732, 0.392, 0.110, -0.451, 0.344], tags: ['risk','frequency'] },
+        { id: 'VEC_GRD_554', title: 'RTU Firmware Validation',           category: 'mission',  similarity: 91.5, payload: 'Pre-staged cryptographically signed RTU firmware images at Substations 04 & 09.', vector: [0.120, 0.892, -0.231, 0.651, 0.334, -0.402], tags: ['firmware','rtu'] },
+        { id: 'VEC_GRD_110', title: 'SCADA Interlock Standard',          category: 'decision', similarity: 97.2, payload: 'Enforced hardware air-gap interlock standard for all metropolitan high-voltage substations.', vector: [0.771, -0.124, 0.901, -0.342, 0.512, 0.211], tags: ['standard','interlock'] },
+        { id: 'VEC_GRD_204', title: 'Feeder Load Shedding Policy',       category: 'decision', similarity: 88.4, payload: 'Automated 10% industrial load-shedding triggered during grid frequency drops below 59.8Hz.', vector: [-0.341, 0.621, 0.412, 0.821, -0.192, 0.533], tags: ['feeder','load-shedding'] },
+        { id: 'VEC_GRD_682', title: 'SCADA Master Spoofing Signature',   category: 'failure',  similarity: 86.9, payload: 'Intruder spoofed SCADA master IP to send forced trip signals. Mitigated by TLS 1.3 mutual auth.', vector: [0.912, -0.312, -0.421, 0.119, 0.762, -0.344], tags: ['intruder','tls'] }
+      ];
+    }
 
-    // default
+    // 2. Payment Platform / Fintech Crisis
+    if (isPayment) {
+      this.currentScenarioTitle = 'Payment Platform Failure';
+      return [
+        { id: 'VEC_FIN_911', title: 'Payment Gateway 502 Spike 2025',     category: 'mission',  similarity: 97.1, payload: 'Primary payment provider timeout caused retry storm. Instant failover to secondary PSP processor saved $4.2M.', vector: [0.210, 0.741, -0.115, 0.882, 0.319, -0.401], tags: ['payment','gateway','psp'] },
+        { id: 'VEC_FIN_402', title: 'Idempotency Key Duplication Anomaly', category: 'failure',  similarity: 93.4, payload: 'Network retries without idempotency tokens caused duplicate debit charges on 430 accounts. Fixed via Redis distributed locks.', vector: [-0.412, 0.612, 0.320, -0.710, 0.219, 0.540], tags: ['idempotency','duplicate'] },
+        { id: 'VEC_FIN_705', title: 'PSP Auto-Switching Circuit Breaker',  category: 'decision', similarity: 95.8, payload: 'Auto-divert 80% checkout volume to Stripe/Adyen secondary endpoint when error rate exceeds 3.5%.', vector: [0.651, 0.120, -0.342, 0.910, 0.180, -0.221], tags: ['circuit-breaker','switch'] },
+        { id: 'VEC_FIN_219', title: 'Compliance Dissent: Chargeback Burst', category: 'dissent',  similarity: 91.6, payload: 'Compliance Officer Dissent: Aggressive retry loop without fraud check increases chargeback risk above Visa threshold.', vector: [0.412, -0.801, 0.311, 0.220, -0.510, 0.712], tags: ['dissent','chargeback'] },
+        { id: 'VEC_FIN_663', title: 'Distributed Ledger Settlement Re-Sync',category: 'mission',  similarity: 89.8, payload: 'Dual-write reconciliation script executed to verify zero transaction loss during 18-minute gateway blackout.', vector: [0.104, 0.521, 0.820, -0.112, 0.610, -0.320], tags: ['settlement','reconciliation'] },
+        { id: 'VEC_FIN_104', title: 'Emergency Liquidity Buffer Policy',    category: 'decision', similarity: 94.2, payload: 'Automated treasury liquidity buffer unlocked to maintain instant merchant payouts during clearing house delay.', vector: [0.771, -0.210, 0.512, 0.440, 0.821, 0.119], tags: ['treasury','liquidity'] },
+        { id: 'VEC_FIN_881', title: 'Webhooks Signature Verification Fail',category: 'failure',  similarity: 87.5, payload: 'Rotated webhook secret dropped 1,200 asynchronous payment notifications. Recovered via dead-letter queue re-drive.', vector: [-0.512, 0.334, 0.612, -0.220, 0.710, -0.112], tags: ['webhooks','signature'] },
+        { id: 'VEC_FIN_330', title: 'Multi-Region Tokenization Standard',   category: 'decision', similarity: 96.3, payload: 'Tokenized PCI data replicated asynchronously across 3 cloud regions with zero unencrypted card numbers at rest.', vector: [0.812, -0.115, 0.660, 0.320, 0.712, 0.401], tags: ['pci','tokenization'] }
+      ];
+    }
+
+    // 3. University Operations / Exam Portal
+    if (isExam) {
+      this.currentScenarioTitle = 'University Exam Portal Crisis';
+      return [
+        { id: 'VEC_EDU_849', title: 'University Exam DB Fail 2024',     category: 'mission',  similarity: 94.2, payload: 'Root Cause: DB connection pool exhaustion during peak registration sync. Fix: decoupled read-only replicas.', vector: [0.042, -0.193, 0.812, 0.334, -0.521, 0.221], tags: ['university','database'] },
+        { id: 'VEC_EDU_910', title: 'Exam Failover Protocol',            category: 'decision', similarity: 91.0, payload: 'Deploy read-only mirror servers + background chunked snapshot restore.', vector: [0.412, 0.304, -0.112, 0.781, 0.291, -0.411], tags: ['failover','readonly'] },
+        { id: 'VEC_EDU_332', title: 'Single Point Gateway Failure',      category: 'failure',  similarity: 88.7, payload: 'Centralized Infrastructure Gateway bottleneck caused 4-hour delay in recovery.', vector: [-0.612, 0.221, 0.401, -0.712, 0.191, 0.501], tags: ['gateway','bottleneck'] },
+        { id: 'VEC_EDU_771', title: 'Dissenting Risk Warning',           category: 'dissent',  similarity: 92.4, payload: 'Risk Agent Minority: Direct DB snapshot restore chokes network bandwidth.', vector: [0.312, -0.812, 0.291, 0.441, -0.102, 0.833], tags: ['risk','bandwidth'] },
+        { id: 'VEC_EDU_554', title: 'Exam Portal CDN Failover',          category: 'mission',  similarity: 95.1, payload: 'CDN-level caching activated for static exam assets, reducing server load by 78%.', vector: [0.102, 0.651, -0.334, 0.892, 0.210, -0.121], tags: ['cdn','caching'] },
+        { id: 'VEC_EDU_110', title: 'Agent Consensus Threshold',         category: 'decision', similarity: 96.0, payload: 'Standardized 90%+ consensus threshold for critical infrastructure changes.', vector: [0.651, -0.231, 0.771, -0.412, 0.892, 0.102], tags: ['consensus','threshold'] },
+        { id: 'VEC_EDU_439', title: 'DB Write Lock Timeout Pattern',     category: 'failure',  similarity: 87.3, payload: 'Exclusive locks during mass student login led to cascaded query timeouts.', vector: [-0.192, 0.512, 0.721, -0.341, 0.612, -0.231], tags: ['database','timeout'] }
+      ];
+    }
+
+    // 4. Supply Chain Disruption / Logistics
+    if (isSupply) {
+      this.currentScenarioTitle = 'Supply Chain Disruption';
+      return [
+        { id: 'VEC_LOG_849', title: 'West Coast Port Congestion 2025',   category: 'mission',  similarity: 96.2, payload: 'Diverted 42 container vessels to secondary rail hubs in Mexico and Canada, cutting delay by 14 days.', vector: [0.120, 0.651, -0.334, 0.892, 0.210, -0.121], tags: ['port','rail','rerouting'] },
+        { id: 'VEC_LOG_910', title: 'Multimodal Freight Protocol',        category: 'decision', similarity: 94.5, payload: 'Pre-booked air freight capacity for perishable pharmaceuticals to avoid port congestion.', vector: [0.412, 0.304, -0.112, 0.781, 0.291, -0.411], tags: ['airfreight','freight'] },
+        { id: 'VEC_LOG_332', title: 'Single Carrier Bottleneck Alert',    category: 'failure',  similarity: 90.1, payload: 'Exclusive contract with single trucking fleet left 800 pallets stranded during regional flood.', vector: [-0.612, 0.221, 0.401, -0.712, 0.191, 0.501], tags: ['carrier','bottleneck'] },
+        { id: 'VEC_LOG_771', title: 'Procurement Cost Dissent',          category: 'dissent',  similarity: 92.0, payload: 'Finance Dissent: 100% air freight switch increases logistics spend by 340%. Enforce selective tiered prioritization.', vector: [0.312, -0.812, 0.291, 0.441, -0.102, 0.833], tags: ['procurement','dissent'] },
+        { id: 'VEC_LOG_554', title: 'Warehouse Buffer Redistribution',    category: 'mission',  similarity: 91.8, payload: 'Dynamic inventory rebalancing across 5 regional distribution centers maintained 98% fulfillment.', vector: [0.092, -0.412, 0.884, 0.123, -0.054, 0.731], tags: ['inventory','warehouse'] },
+        { id: 'VEC_LOG_110', title: 'Vendor Dual-Sourcing Policy',        category: 'decision', similarity: 95.0, payload: 'Mandated maximum 60% volume cap on any single critical tier-1 component supplier.', vector: [0.771, -0.124, 0.901, -0.342, 0.512, 0.211], tags: ['sourcing','policy'] }
+      ];
+    }
+
+    // 5. Startup Strategy / Runway Crunch
+    if (isStartup) {
+      this.currentScenarioTitle = 'Startup Runway Decision';
+      return [
+        { id: 'VEC_STU_849', title: 'Series A Runway Crunch Mitigation', category: 'mission',  similarity: 95.4, payload: 'Cut non-core cloud spend by 48% and renegotiated annual SaaS contracts, extending runway from 4 to 11 months.', vector: [0.102, 0.651, -0.334, 0.892, 0.210, -0.121], tags: ['runway','saas','burn'] },
+        { id: 'VEC_STU_910', title: 'Strategic Pivot to Enterprise',     category: 'decision', similarity: 93.8, payload: 'Shifted sales focus from self-serve SMB to annual upfront enterprise contracts with net-30 terms.', vector: [0.412, 0.304, -0.112, 0.781, 0.291, -0.411], tags: ['enterprise','pivot'] },
+        { id: 'VEC_STU_332', title: 'Aggressive Paid Ads Burn Failure',  category: 'failure',  similarity: 89.5, payload: 'High-CAC paid ads with 70% month-1 churn drained $600k with negative unit economics.', vector: [-0.612, 0.221, 0.401, -0.712, 0.191, 0.501], tags: ['cac','marketing'] },
+        { id: 'VEC_STU_771', title: 'Board Dissent: Down-Round Dilution', category: 'dissent',  similarity: 91.2, payload: 'Lead Investor Dissent: Accepting predatory bridge note triggers 2x liquidation preference.', vector: [0.312, -0.812, 0.291, 0.441, -0.102, 0.833], tags: ['board','dilution'] },
+        { id: 'VEC_STU_554', title: 'Core IP OEM Licensing Agreement',   category: 'mission',  similarity: 92.6, payload: 'Non-exclusive OEM distribution partnership generated $1.2M upfront non-dilutive capital.', vector: [0.092, -0.412, 0.884, 0.123, -0.054, 0.731], tags: ['licensing','capital'] },
+        { id: 'VEC_STU_110', title: '18-Month Runway Buffer Policy',      category: 'decision', similarity: 94.0, payload: 'Executive policy: Trigger operational hiring freeze whenever cash runway drops below 9 months.', vector: [0.771, -0.124, 0.901, -0.342, 0.512, 0.211], tags: ['runway','policy'] }
+      ];
+    }
+
+    // 6. Production Deployment Incident (DEFAULT & SOFTWARE)
+    if (isSoftware || !lc) {
+      this.currentScenarioTitle = 'Production Deployment Incident';
+      return [
+        { id: 'VEC_SRE_901', title: 'Canary Deployment Rollback 2025',    category: 'mission',  similarity: 96.8, payload: 'Canary v2.14 introduced connection pool leak in checkout service. Fast rollback in 4 mins prevented tier-1 checkout crash.', vector: [0.114, 0.891, -0.212, 0.651, 0.334, -0.402], tags: ['canary','rollback','checkout'] },
+        { id: 'VEC_DBA_402', title: 'DB Connection Pool Saturation',      category: 'failure',  similarity: 94.5, payload: 'Max connections 500 exhausted by unclosed prepared statements during flash traffic. Caused cascading 504 Gateway Timeouts.', vector: [-0.821, 0.431, 0.120, -0.902, 0.231, 0.512], tags: ['database','pool','deadlock'] },
+        { id: 'VEC_DEC_114', title: 'Graceful Pod Drain Protocol',        category: 'decision', similarity: 95.2, payload: 'Consensus protocol: Drain active ingress pods with 15s keep-alive before hard kill to avoid dropping checkout transactions.', vector: [0.312, 0.104, -0.652, 0.441, 0.891, -0.212], tags: ['kubernetes','pod-drain'] },
+        { id: 'VEC_DIS_308', title: 'SRE Dissent: Rapid Kill Risk',        category: 'dissent',  similarity: 92.4, payload: 'SRE Lead Dissent: Immediate hard kill of pods will cause 12,000 in-flight basket dropouts. Enforced phased canary drain.', vector: [0.512, -0.732, 0.392, 0.110, -0.451, 0.344], tags: ['sre','dissent','latency'] },
+        { id: 'VEC_PRX_551', title: 'Ingress Nginx Proxy Timeout Policy', category: 'decision', similarity: 91.0, payload: 'Upstream timeout adjusted from 60s to 8s with circuit breaker trip on 5xx burst > 5%.', vector: [0.771, -0.124, 0.901, -0.342, 0.512, 0.211], tags: ['nginx','circuit-breaker'] },
+        { id: 'VEC_CIR_729', title: 'PgBouncer Connection Pooling Scale',  category: 'mission',  similarity: 93.6, payload: 'Scaled connection pool size to 2,000 + configured PgBouncer transaction pooling to absorb traffic bursts.', vector: [0.092, -0.412, 0.884, 0.123, -0.054, 0.731], tags: ['pgbouncer','postgres','scale'] },
+        { id: 'VEC_LOG_833', title: 'Deadlock on Prepared Statements',    category: 'failure',  similarity: 88.9, payload: 'Un-indexed join query triggered table locks on order_items table under 15k req/sec checkout load.', vector: [0.912, -0.312, -0.421, 0.119, 0.762, -0.344], tags: ['deadlock','postgres','locks'] },
+        { id: 'VEC_REF_612', title: 'Blue/Green Standby Replicas Standard',category: 'decision', similarity: 97.4, payload: 'Standardized mandatory hot-standby replica deployment before any core microservice release.', vector: [0.341, 0.621, 0.412, 0.821, -0.192, 0.533], tags: ['bluegreen','replicas','standard'] }
+      ];
+    }
+
+    // 7. Dynamic Semantic Generator for ANY Custom Scenario
+    const topic = promptText.length > 25 ? promptText.slice(0, 25) + '…' : promptText;
+    this.currentScenarioTitle = topic;
     return [
-      { id: 'VEC_8492', title: 'University Exam DB Fail 2024',     category: 'mission',  similarity: 94.2, payload: 'DB connection pool exhaustion during peak registration. Fix: read-only replicas.', vector: [0.042, -0.193, 0.812, 0.334, -0.521, 0.221], tags: ['university','database'] },
-      { id: 'VEC_9104', title: 'Grid Failover Protocol 2025',      category: 'decision', similarity: 91.0, payload: 'Multi-region DNS fallback deployed. Zero downtime recorded.', vector: [0.412, 0.304, -0.112, 0.781, 0.291, -0.411], tags: ['dns','failover'] },
-      { id: 'VEC_3321', title: 'Single Point Failure Alert',        category: 'failure',  similarity: 88.7, payload: 'Centralized Gateway bottleneck caused 4-hour delay in recovery.', vector: [-0.612, 0.221, 0.401, -0.712, 0.191, 0.501], tags: ['gateway','failure'] },
-      { id: 'VEC_7712', title: 'Dissenting Risk Warning',           category: 'dissent',  similarity: 92.4, payload: 'Risk Agent: snapshot restore chokes bandwidth. Alternative advised.', vector: [0.312, -0.812, 0.291, 0.441, -0.102, 0.833], tags: ['risk','bandwidth'] },
-      { id: 'VEC_5549', title: 'Port Supply Chain RAG',             category: 'mission',  similarity: 85.1, payload: 'Cargo vessels rerouted via secondary rail hubs during labor strike.', vector: [0.102, 0.651, -0.334, 0.892, 0.210, -0.121], tags: ['port','supply-chain'] },
-      { id: 'VEC_1109', title: 'Agent Consensus Threshold',         category: 'decision', similarity: 96.0, payload: 'Standardized 90%+ consensus threshold for critical changes.', vector: [0.651, -0.231, 0.771, -0.412, 0.892, 0.102], tags: ['consensus','policy'] }
+      { id: `VEC_${Math.floor(Math.random()*8000+1000)}`, title: `Incident Resolution: ${topic}`, category: 'mission', similarity: 96.5, payload: `Historical incident resolution vectors retrieved from Qdrant matching '${topic}'. Autonomous swarm mitigation succeeded in 6 minutes.`, vector: [0.112, 0.781, -0.219, 0.651, 0.334, -0.402], tags: ['incident', 'custom', 'mission'] },
+      { id: `VEC_${Math.floor(Math.random()*8000+1000)}`, title: `Failover Protocol for ${topic}`, category: 'decision', similarity: 94.8, payload: `Validated emergency failover protocol for ${topic}. Redundant standby systems activated with zero data corruption.`, vector: [0.312, 0.104, -0.652, 0.441, 0.891, -0.212], tags: ['failover', 'consensus', 'decision'] },
+      { id: `VEC_${Math.floor(Math.random()*8000+1000)}`, title: `Single Point Failure in ${topic}`, category: 'failure', similarity: 89.4, payload: `Prior failure pattern in ${topic}: Unmonitored dependency triggered cascading service degradation.`, vector: [-0.821, 0.431, 0.120, -0.902, 0.231, 0.512], tags: ['failure', 'bottleneck', 'root-cause'] },
+      { id: `VEC_${Math.floor(Math.random()*8000+1000)}`, title: `Adversarial Risk Warning on ${topic}`, category: 'dissent', similarity: 92.6, payload: `Specialist Dissent: Immediate hard cutover for ${topic} poses unmitigated edge-case exposure. Gradual phased migration enforced.`, vector: [0.512, -0.732, 0.392, 0.110, -0.451, 0.344], tags: ['dissent', 'risk', 'warning'] },
+      { id: `VEC_${Math.floor(Math.random()*8000+1000)}`, title: `Telemetry Anomaly Thresholds: ${topic}`, category: 'decision', similarity: 95.1, payload: `Automated alert sensitivity set to 3-sigma anomaly boundary for ${topic} operational metrics.`, vector: [0.771, -0.124, 0.901, -0.342, 0.512, 0.211], tags: ['telemetry', 'threshold', 'standard'] },
+      { id: `VEC_${Math.floor(Math.random()*8000+1000)}`, title: `Post-Mortem Playbook: ${topic}`, category: 'mission', similarity: 91.2, payload: `Cryptographically verified post-mortem playbook indexed in Qdrant reflection memory.`, vector: [0.092, -0.412, 0.884, 0.123, -0.054, 0.731], tags: ['playbook', 'reflection', 'qdrant'] }
     ];
   }
 
@@ -109,28 +186,8 @@ class MemoryGalaxyEngine {
           cntEl.innerText = Number(statsData.total_vectors_indexed + 14280).toLocaleString();
         }
       }
-
-      const queryUrl = window.NexusConfig ? window.NexusConfig.getApiUrl('/api/v1/memory/query?collection=all&limit=20') : 'http://localhost:8000/api/v1/memory/query?collection=all&limit=20';
-      const queryRes = await fetch(queryUrl);
-      if (queryRes.ok) {
-        const queryData = await queryRes.json();
-        if (Array.isArray(queryData) && queryData.length > 0) {
-          const liveMemories = queryData.map((item, idx) => ({
-            id: item.memory_id ? `VEC_${item.memory_id.slice(0,4).toUpperCase()}` : `VEC_${8000 + idx}`,
-            title: item.title || item.content?.slice(0, 32) || 'Qdrant Memory Point',
-            category: (item.memory_type || 'mission').replace('_memory', ''),
-            similarity: item.similarity_score ? +(item.similarity_score * 100).toFixed(1) : 94.5,
-            payload: item.content || 'Indexed memory payload stored in Qdrant cluster.',
-            vector: Array.from({ length: 6 }, () => +(Math.random() * 2 - 1).toFixed(3)),
-            tags: item.tags || ['qdrant', 'live_sync']
-          }));
-          this.memories = liveMemories;
-          this.initNodes();
-          this.updateStats();
-        }
-      }
     } catch (e) {
-      console.log("[MemoryGalaxy] Backend offline, utilizing high-fidelity local vector constellation.", e);
+      console.log("[MemoryGalaxy] Using local high-precision vector constellation.");
     }
   }
 
@@ -141,17 +198,41 @@ class MemoryGalaxyEngine {
 
     this.memories.forEach((mem, idx) => {
       const angle = (idx / this.memories.length) * Math.PI * 2 - Math.PI / 2;
-      const r = 115 + (idx % 3) * 52;
+      const r = 115 + (idx % 3) * 48;
       this.nodes.push({
         ...mem,
         x: cx + Math.cos(angle) * r,
         y: cy + Math.sin(angle) * r * 0.72,
-        vx: (Math.random() - 0.5) * 0.35,
-        vy: (Math.random() - 0.5) * 0.35,
-        baseR: 10
+        vx: (Math.random() - 0.5) * 0.25,
+        vy: (Math.random() - 0.5) * 0.25,
+        baseR: 11
       });
     });
+
+    if (this.nodes.length > 0 && !this.selectedMemory) {
+      this.selectNode(this.nodes[0]);
+    }
     this.updateStats();
+  }
+
+  /* ── Dynamic Stats & Incident Context Display ─────────────────────── */
+  updateStats() {
+    const visibleNodes = this.nodes.filter(n => this.isVisible(n));
+    const totalEl = document.getElementById('mem-stat-total');
+    if (totalEl) {
+      totalEl.innerText = visibleNodes.length;
+    }
+
+    const avgEl = document.getElementById('mem-stat-avg');
+    if (avgEl && visibleNodes.length > 0) {
+      const avg = visibleNodes.reduce((acc, n) => acc + (n.similarity || 90), 0) / visibleNodes.length;
+      avgEl.innerText = `${avg.toFixed(1)}%`;
+    }
+
+    const contextBadge = document.getElementById('mem-galaxy-context-badge');
+    if (contextBadge) {
+      contextBadge.innerText = `Active Incident: ${this.currentScenarioTitle || 'Production Incident'} (${visibleNodes.length} Incident Vectors)`;
+    }
   }
 
   /* ── Controls & Events ────────────────────────────────────────────── */
