@@ -40,10 +40,12 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS Configuration
+# CORS Configuration for Local, Docker, and Vercel Deployments
+origins = settings.CORS_ORIGINS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
+    allow_origins=origins if "*" not in origins else ["*"],
+    allow_origin_regex=r"^https?://.*" if "*" in origins else r"^https?://.*\.vercel\.app$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -61,7 +63,12 @@ app.include_router(analytics_router, prefix=settings.API_V1_STR)
 app.include_router(audit_router, prefix=settings.API_V1_STR)
 app.include_router(ws_router)
 
-@app.get("/health")
+@app.api_route("/ping", methods=["GET", "HEAD"])
+async def ping():
+    """Ultra-fast keepalive probe for UptimeRobot / uptime bots to prevent sleeping."""
+    return {"pong": True, "status": "UP"}
+
+@app.api_route("/health", methods=["GET", "HEAD"])
 async def health_check():
     return {
         "status": "HEALTHY",
@@ -73,4 +80,6 @@ async def health_check():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)
+    port = int(os.environ.get("PORT", 8000))
+    reload = settings.ENV == "development"
+    uvicorn.run("app.main:app", host="0.0.0.0", port=port, reload=reload)

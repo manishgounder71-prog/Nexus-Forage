@@ -22,28 +22,73 @@ from app.pipeline.crisis_detector import crisis_engine
 
 
 class IncidentStore:
-    """In-process incident + crisis ledger shared with the API layer."""
+    """Incident + crisis ledger shared with the API layer.
+
+    Incidents are persisted to the SQLite `incidents` table (durable across
+    restarts) and mirrored in-process for real-time aggregation. ``list`` and
+    ``get`` read from the durable store so incidents survive restarts.
+    """
 
     def __init__(self):
-        self.incidents: Dict[str, Dict] = {}  # incident_id -> incident dict
+        self.incidents: Dict[str, Dict] = {}  # incident_id -> incident dict (in-memory mirror)
         self.crises: Dict[str, Dict] = {}     # incident_id -> crisis verdict
+        self._loaded = False
 
-    def upsert(self, incident: Dict) -> Dict:
+    async def _load(self) -> None:
+        """Eagerly hydrate from the durable incidents table on first access."""
+        if self._loaded:
+            return
+        self._loaded = True
+        try:
+            async with AsyncSessionLocal() as session:
+                rows = (
+                    await session.execute(
+                        select(db.IncidentModel).order_by(db.IncidentModel.created_at.desc())
+                    )
+                ).scalars().all()
+            for r in rows:
+                self.incidents[r.id] = _incident_model_to_dict(r)
+        except Exception as e:  # pragma: no cover - resilient on degraded storage
+            print(f"[IncidentStore] load failed: {e}")
+
+    async def upsert(self, incident: Dict) -> Dict:
         iid = incident.get("id") or _gen_incident_id(incident)
         incident["id"] = iid
+        # Durable write-through to SQLite.
+        try:
+            async with AsyncSessionLocal() as session:
+                async with session.begin():
+                    res = await session.execute(
+                        select(db.IncidentModel).where(db.IncidentModel.id == iid))
+                    row = res.scalar_one_or_none()
+                    if row is None:
+                        row = db.IncidentModel(id=iid, org_id=incident.get("org_id") or "unknown")
+                        session.add(row)
+                    row.title = incident.get("title") or incident.get("summary") or "Operational incident"
+                    row.severity = incident.get("severity") or "medium"
+                    row.confidence = float(incident.get("confidence") or 0.0)
+                    row.status = (incident.get("status") or "detected").upper()
+                    row.affected_resources = incident.get("affected_resources") or []
+                    row.signals = incident.get("signals") or []
+                    row.event_count = len(incident.get("source_events") or []) or incident.get("event_count") or 0
+                    row.mission_id = incident.get("mission_id")
+        except Exception as e:  # pragma: no cover
+            print(f"[IncidentStore] persist failed: {e}")
         self.incidents[iid] = incident
         return incident
 
-    def list(self, org_id: Optional[str] = None) -> List[Dict]:
+    async def list(self, org_id: Optional[str] = None) -> List[Dict]:
+        await self._load()
         items = list(self.incidents.values())
         if org_id:
             items = [i for i in items if i.get("org_id") == org_id]
-        return sorted(items, key=lambda i: i.get("detected_at") or "", reverse=True)
+        return sorted(items, key=lambda i: i.get("detected_at") or i.get("first_seen") or "", reverse=True)
 
-    def get(self, incident_id: str) -> Optional[Dict]:
+    async def get(self, incident_id: str) -> Optional[Dict]:
+        await self._load()
         return self.incidents.get(incident_id)
 
-    def mark_crisis(self, incident_id: str, verdict: Dict) -> None:
+    async def mark_crisis(self, incident_id: str, verdict: Dict) -> None:
         # Avoid a circular reference: the verdict embeds the incident dict it
         # was derived from. Store only the summary fields on the incident.
         self.crises[incident_id] = verdict
@@ -55,6 +100,55 @@ class IncidentStore:
                 "confidence": verdict.get("confidence"),
                 "detected_at": verdict.get("detected_at"),
             }
+        # Persist crisis verdict signals + status to the durable row.
+        try:
+            async with AsyncSessionLocal() as session:
+                async with session.begin():
+                    res = await session.execute(
+                        select(db.IncidentModel).where(db.IncidentModel.id == incident_id))
+                    row = res.scalar_one_or_none()
+                    if row is not None:
+                        row.status = "CRISIS"
+                        if verdict.get("signals"):
+                            row.signals = verdict.get("signals")
+                        if verdict.get("priority"):
+                            if hasattr(row, "priority"):
+                                row.priority = verdict.get("priority")
+                        if verdict.get("confidence"):
+                            row.confidence = float(verdict.get("confidence"))
+        except Exception as e:  # pragma: no cover
+            print(f"[IncidentStore] mark_crisis persist failed: {e}")
+
+
+def _incident_model_to_dict(row: "db.IncidentModel") -> Dict:
+    """Converts a durable IncidentModel row back into an incident dict."""
+    signals = row.signals or []
+    reasons = [
+        s if isinstance(s, str) else (s.get("reason") or s.get("message") or "")
+        for s in (signals if isinstance(signals, list) and signals and isinstance(signals[0], str) else [])
+    ]
+    return {
+        "id": row.id,
+        "org_id": row.org_id,
+        "title": row.title,
+        "summary": row.title,
+        "severity": row.severity,
+        "confidence": row.confidence or 0.0,
+        "status": (row.status or "DETECTED").lower(),
+        "affected_resources": row.affected_resources or [],
+        "signals": row.signals or [],
+        "event_types": [],
+        "resource": ", ".join(row.affected_resources or []),
+        "related_services": [],
+        "source_events": [],
+        "event_count": row.event_count or 0,
+        "mission_id": row.mission_id,
+        "first_seen": row.first_seen.isoformat() if row.first_seen else None,
+        "last_seen": row.last_seen.isoformat() if row.last_seen else None,
+        "detected_at": row.created_at.isoformat() if row.created_at else None,
+        "reasons": reasons,
+        "priority": None,
+    }
 
 
 incident_store = IncidentStore()
@@ -87,10 +181,10 @@ class EventIngestionPipeline:
             await _safe_bridge(message["message"])
 
     async def _on_incident(self, incident: Dict) -> None:
-        saved = incident_store.upsert(incident)
+        saved = await incident_store.upsert(incident)
         verdict = crisis_engine.evaluate(saved)
         if verdict["is_crisis"]:
-            incident_store.mark_crisis(saved["id"], verdict)
+            await incident_store.mark_crisis(saved["id"], verdict)
             await self._relay_crisis(saved["id"], verdict)
         await self._relay_incident(saved)
 

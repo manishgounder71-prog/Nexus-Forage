@@ -87,7 +87,9 @@ class OmiVoiceIngestionService:
         """Transcribes raw audio bytes using Gemini API when key is configured."""
         import base64
         b64_audio = base64.b64encode(audio_data).decode("utf-8")
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={settings.GEMINI_API_KEY}"
+        model = "gemini-2.0-flash"
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+        headers = {"x-goog-api-key": settings.GEMINI_API_KEY, "Content-Type": "application/json"}
         payload = {
             "contents": [{
                 "parts": [
@@ -96,13 +98,16 @@ class OmiVoiceIngestionService:
                 ]
             }]
         }
-        async with httpx.AsyncClient(timeout=8.0) as client:
-            resp = await client.post(url, json=payload)
+        async with httpx.AsyncClient(timeout=12.0) as client:
+            resp = await client.post(url, json=payload, headers=headers)
             if resp.status_code == 200:
                 data = resp.json()
-                text = data["candidates"][0]["content"]["parts"][0]["text"].strip()
-                if text:
-                    return text
+                candidates = data.get("candidates", [])
+                if candidates:
+                    parts = candidates[0].get("content", {}).get("parts", [])
+                    text = parts[0].get("text", "").strip() if parts else ""
+                    if text:
+                        return text
         return None
 
     async def push_text_conversation(self, transcript_text: str) -> Dict[str, Any]:
@@ -169,7 +174,7 @@ class OmiVoiceIngestionService:
         return {
             "chunk_id": chunk_id,
             "source": "omi_wearable_stream",
-            "timestamp": datetime.datetime.utcnow().isoformat(),
+            "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
             "raw_text": transcript_text,
             "is_crisis_trigger": is_crisis,
             "extracted_intent": intent
@@ -250,7 +255,7 @@ class OmiVoiceIngestionService:
             "provider": provider,
             "audio_format": "16kHz Mono PCM / WebM",
             "extracted_intent": intent,
-            "timestamp": datetime.datetime.utcnow().isoformat()
+            "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat()
         }
 
 omi_service = OmiVoiceIngestionService()

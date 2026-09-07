@@ -8,7 +8,7 @@ import enum
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 
 def utc_now_iso() -> str:
@@ -139,8 +139,7 @@ class NexusCanonicalEvent(BaseModel):
     error_rate: Optional[str] = None          # e.g. "47%" or "0.47"
     avg_latency_ms: Optional[float] = None     # e.g. 2400.0
 
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
 
 def normalize_severity(raw: Any) -> str:

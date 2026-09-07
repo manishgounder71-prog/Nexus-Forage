@@ -32,8 +32,8 @@ ENV PATH=/root/.local/bin:$PATH
 # Copy backend source code
 COPY backend/ /app/
 
-# Create non-root system user
-RUN useradd -m -u 1001 nexususer && chown -R nexususer:nexususer /app
+# Create non-root system user and ensure data directory exists
+RUN mkdir -p /app/data && useradd -m -u 1001 nexususer && chown -R nexususer:nexususer /app
 USER nexususer
 
 EXPOSE 8000

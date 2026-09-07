@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: nexus-forge-backend
+    runtime: python
+    rootDir: backend
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /ping
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.5
+      - key: ENV
+        value: production
+      - key: DEBUG
+        value: "false"
+      - key: DEMO_MODE
+        value: "true"
+      - key: CORS_ORIGINS
+        value: "*"
+      - key: WEBHOOK_SECRET_KEY
+        generateValue: true
+      - key: CREDENTIAL_ENCRYPTION_KEY
+        generateValue: true

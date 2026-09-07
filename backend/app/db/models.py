@@ -1,11 +1,14 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import Column, String, Float, Integer, Boolean, DateTime, ForeignKey, Text, JSON, Index
 from sqlalchemy.orm import relationship
 from app.db.session import Base
 
 def generate_uuid():
     return str(uuid.uuid4())
+
+def utc_now():
+    return datetime.now(timezone.utc)
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -23,8 +26,8 @@ class OrganizationModel(Base):
     settings = Column(JSON, default=dict)
     status = Column(String, default="ACTIVE")  # ACTIVE, ONBOARDING, SUSPENDED
     ingestion_secret_hash = Column(String, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
 
     users = relationship("OrgUserModel", back_populates="organization", cascade="all, delete-orphan")
     connectors = relationship("ConnectorModel", back_populates="organization", cascade="all, delete-orphan")
@@ -47,7 +50,7 @@ class OrgUserModel(Base):
     role = Column(String, default="VIEWER")  # OWNER, ADMIN, OPERATOR, ANALYST, VIEWER
     permissions = Column(JSON, default=list)
     api_key_hash = Column(String, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
 
     organization = relationship("OrganizationModel", back_populates="users")
 
@@ -74,8 +77,8 @@ class ConnectorModel(Base):
     last_health_check = Column(DateTime, nullable=True)
     webhook_token_hash = Column(String, nullable=True)
     webhook_url = Column(String, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
 
     organization = relationship("OrganizationModel", back_populates="connectors")
     nexus_events = relationship("NexusEventModel", back_populates="connector", cascade="all, delete-orphan")
@@ -98,7 +101,7 @@ class NexusEventModel(Base):
     summary = Column(Text, default="")
     metadata_json = Column(JSON, default=dict)
     raw_payload = Column(JSON, default=dict)
-    received_at = Column(DateTime, default=datetime.utcnow)
+    received_at = Column(DateTime, default=utc_now)
     processed = Column(Boolean, default=False)
     dedupe_hash = Column(String, nullable=True, index=True)
     incident_id = Column(String, ForeignKey("incidents.id"), nullable=True)
@@ -120,10 +123,10 @@ class IncidentModel(Base):
     affected_resources = Column(JSON, default=list)
     signals = Column(JSON, default=list)  # explainable detection signals
     event_count = Column(Integer, default=0)
-    first_seen = Column(DateTime, default=datetime.utcnow)
-    last_seen = Column(DateTime, default=datetime.utcnow)
+    first_seen = Column(DateTime, default=utc_now)
+    last_seen = Column(DateTime, default=utc_now)
     mission_id = Column(String, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
 
     organization = relationship("OrganizationModel", back_populates="incidents")
     related_events = relationship("NexusEventModel", back_populates="incident")
@@ -140,7 +143,7 @@ class AuditLogModel(Base):
     resource_id = Column(String, nullable=True)
     details = Column(JSON, default=dict)
     ip_address = Column(String, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
 
     organization = relationship("OrganizationModel", back_populates="audit_logs")
 
@@ -157,7 +160,7 @@ class OrgMemoryModel(Base):
     lesson = Column(Text, nullable=True)
     confidence = Column(Float, default=0.0)
     source = Column(String, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
 
     organization = relationship("OrganizationModel", back_populates="org_memories")
 
@@ -179,7 +182,7 @@ class ActionApprovalModel(Base):
     reviewed_by = Column(String, nullable=True)
     reviewed_at = Column(DateTime, nullable=True)
     execution_result = Column(JSON, default=dict)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
 
     organization = relationship("OrganizationModel", back_populates="approvals")
 
@@ -194,8 +197,8 @@ class OrganizationPolicyModel(Base):
     auto_approval_risk_threshold = Column(String, default="MEDIUM")  # LOW, MEDIUM (HIGH/CRITICAL always require human)
     crisis_confidence_threshold = Column(Float, default=0.85)
     max_payload_bytes = Column(Integer, default=1048576)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
 
     organization = relationship("OrganizationModel", back_populates="policies")
 
@@ -214,8 +217,8 @@ class MissionModel(Base):
     status = Column(String, default="CREATED")  # CREATED, ANALYZED, EXECUTING, DEBATING, RED_TEAM, COMPLETED, FAILED
     constraints = Column(JSON, default=list)
     required_capabilities = Column(JSON, default=list)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
 
     organization = relationship("OrganizationModel", back_populates="missions")
     tasks = relationship("TaskModel", back_populates="mission", cascade="all, delete-orphan")
@@ -230,7 +233,7 @@ class MissionEventModel(Base):
     stage = Column(String, default="EXECUTION")
     message = Column(Text, nullable=False)
     payload = Column(JSON, default=dict)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
 
     mission = relationship("MissionModel", back_populates="events")
 
@@ -246,7 +249,7 @@ class AgentModel(Base):
     speed_score = Column(Float, default=0.9)
     reputation_score = Column(Float, default=0.92)
     total_missions = Column(Integer, default=0)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
 
 class TaskModel(Base):
     __tablename__ = "tasks"
@@ -260,8 +263,8 @@ class TaskModel(Base):
     confidence = Column(Float, default=0.0)
     reasoning_trace = Column(Text, default="")
     output_deliverable = Column(JSON, default=dict)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
 
     mission = relationship("MissionModel", back_populates="tasks")
 
@@ -277,4 +280,4 @@ class DebateModel(Base):
     reasoning_summary = Column(Text, default="")
     supporting_agents = Column(JSON, default=list)
     dissenting_agents = Column(JSON, default=list)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)

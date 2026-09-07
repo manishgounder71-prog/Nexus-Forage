@@ -109,6 +109,12 @@
         <span>QDRANT: <span id="qdrant-vectors-count">14,290</span> VECS</span>
       </div>
 
+      <!-- Cloud / Local Backend Endpoint Indicator & Switcher -->
+      <div id="backend-endpoint-pill" class="telemetry-pill-hud" title="Backend Server (Render / Local). Click to configure." style="cursor:pointer; border-color:rgba(139,92,246,0.4); background:rgba(139,92,246,0.1);">
+        <i class="fa-solid fa-server" id="backend-endpoint-icon" style="color:#a78bfa;"></i>
+        <span id="backend-endpoint-label">BACKEND</span>
+      </div>
+
       <!-- Live Telemetry HUD -->
       <div id="telemetry-latency" class="telemetry-pill-hud" title="Real-time Pipeline Latency">
         <i class="fa-solid fa-bolt" style="color:#f59e0b;"></i>
@@ -1048,10 +1054,39 @@
     </div>
   </div>
 
+  <!-- Backend Server Configuration Modal (For Vercel + Render Deployments) -->
+  <div id="backend-config-modal" class="nexus-modal-backdrop" style="display:none;">
+    <div class="nexus-modal-card" style="max-width:540px;">
+      <div class="modal-card-header">
+        <h3><i class="fa-solid fa-server" style="color:var(--accent-primary);"></i> Backend Server Connection</h3>
+        <button id="backend-modal-close" class="modal-close-btn" title="Close (Esc)">&times;</button>
+      </div>
+      <div class="modal-card-body">
+        <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:14px; line-height:1.5;">
+          Connect this Vercel dashboard to your live Render backend service (or local development instance).
+        </p>
+        <div style="margin-bottom:14px;">
+          <label style="display:block; font-size:0.75rem; text-transform:uppercase; color:var(--text-muted); margin-bottom:6px; font-weight:600; letter-spacing:0.05em;">FastAPI Backend URL</label>
+          <input type="url" id="backend-url-input" placeholder="https://your-service.onrender.com" style="width:100%; box-sizing:border-box; padding:10px 14px; background:rgba(0,0,0,0.4); border:1px solid rgba(139,92,246,0.3); border-radius:8px; color:#fff; font-family:var(--font-mono); font-size:0.85rem;" />
+        </div>
+        <div id="backend-test-feedback" style="font-size:0.8rem; margin-bottom:14px; min-height:22px; font-family:var(--font-mono);"></div>
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+          <button id="backend-test-btn" class="hud-btn" style="background:rgba(255,255,255,0.08);"><i class="fa-solid fa-heart-pulse"></i> Test Ping</button>
+          <button id="backend-save-btn" class="hud-btn" style="background:var(--primary); color:#fff;"><i class="fa-solid fa-floppy-disk"></i> Save & Connect</button>
+          <button id="backend-reset-btn" class="hud-btn" style="background:transparent; border:1px solid rgba(255,255,255,0.15);"><i class="fa-solid fa-rotate-left"></i> Reset Default</button>
+        </div>
+        <div style="margin-top:16px; padding:10px 12px; background:rgba(245,158,11,0.08); border:1px solid rgba(245,158,11,0.25); border-radius:6px; font-size:0.75rem; color:#fbbf24; line-height:1.4;">
+          <i class="fa-solid fa-circle-info"></i> <strong>Render Free Tier Note:</strong> If idle for 15 minutes, Render sleeps and takes ~30s on first spin-up. Use an uptime bot pinging <code>/ping</code> to keep it warm!
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Real-Time Toast Notification System -->
   <div id="nexus-toast-container" class="toast-container"></div>
 
   <!-- Application Scripts with Cache-Busting Version Query -->
+  <script src="js/nexus-config.js?v=20260907_1200"></script>
   <script src="js/audio-synth.js?v=20260903_1144"></script>
   <script src="js/nexus-core.js?v=20260903_1144"></script>
   <script src="js/dag-visualizer.js?v=20260903_1144"></script>

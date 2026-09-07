@@ -14,7 +14,7 @@ services:
       - ENV=production
       - DEMO_MODE=true
       - QDRANT_URL=http://qdrant:6333
-      - DATABASE_URL=sqlite+aiosqlite:///./nexus_forge.db
+      - DATABASE_URL=sqlite+aiosqlite:////app/data/nexus_forge.db
       - LYZR_API_KEY=${LYZR_API_KEY:-}
       - OMI_API_KEY=${OMI_API_KEY:-}
       - GEMINI_API_KEY=${GEMINI_API_KEY:-}
@@ -23,7 +23,7 @@ services:
       qdrant:
         condition: service_healthy
     volumes:
-      - backend_db_data:/app/nexus_forge.db
+      - backend_db_data:/app/data
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 15s

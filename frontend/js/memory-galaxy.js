@@ -100,7 +100,8 @@ class MemoryGalaxyEngine {
 
   async fetchLiveQdrantData() {
     try {
-      const statsRes = await fetch('http://localhost:8000/api/v1/memory/stats');
+      const statsUrl = window.NexusConfig ? window.NexusConfig.getApiUrl('/api/v1/memory/stats') : 'http://localhost:8000/api/v1/memory/stats';
+      const statsRes = await fetch(statsUrl);
       if (statsRes.ok) {
         const statsData = await statsRes.json();
         const cntEl = document.getElementById('qdrant-vectors-count');
@@ -109,7 +110,8 @@ class MemoryGalaxyEngine {
         }
       }
 
-      const queryRes = await fetch('http://localhost:8000/api/v1/memory/query?collection=all&limit=20');
+      const queryUrl = window.NexusConfig ? window.NexusConfig.getApiUrl('/api/v1/memory/query?collection=all&limit=20') : 'http://localhost:8000/api/v1/memory/query?collection=all&limit=20';
+      const queryRes = await fetch(queryUrl);
       if (queryRes.ok) {
         const queryData = await queryRes.json();
         if (Array.isArray(queryData) && queryData.length > 0) {
@@ -178,7 +180,10 @@ class MemoryGalaxyEngine {
         searchTimeout = setTimeout(async () => {
           try {
             const col = this.activeCategory === 'all' ? 'all' : `${this.activeCategory}_memory`;
-            const res = await fetch(`http://localhost:8000/api/v1/memory/query?collection=${col}&q=${encodeURIComponent(this.searchQuery)}&limit=10`);
+            const searchUrl = window.NexusConfig 
+              ? window.NexusConfig.getApiUrl(`/api/v1/memory/query?collection=${col}&q=${encodeURIComponent(this.searchQuery)}&limit=10`)
+              : `http://localhost:8000/api/v1/memory/query?collection=${col}&q=${encodeURIComponent(this.searchQuery)}&limit=10`;
+            const res = await fetch(searchUrl);
             if (res.ok) {
               const matches = await res.json();
               if (matches && matches.length > 0) {
@@ -427,7 +432,8 @@ class MemoryGalaxyEngine {
 
     // Persist to Qdrant backend if available
     try {
-      await fetch('http://localhost:8000/api/v1/memory/insert', {
+      const insertUrl = window.NexusConfig ? window.NexusConfig.getApiUrl('/api/v1/memory/insert') : 'http://localhost:8000/api/v1/memory/insert';
+      await fetch(insertUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -1,5 +1,5 @@
 from typing import List, Optional, Dict, Any
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 class MissionCreateRequest(BaseModel):
     raw_prompt: str = Field(..., description="Spoken or typed mission scenario text")
@@ -38,5 +38,4 @@ class MissionResponse(BaseModel):
     required_capabilities: List[str] = Field(default_factory=list)
     created_at: str
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

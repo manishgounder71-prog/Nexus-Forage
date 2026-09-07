@@ -44,6 +44,17 @@ class LyzrClient:
     # ------------------------------------------------------------------
     # Low-level helpers
     # ------------------------------------------------------------------
+    async def _get(self, path: str, timeout: float = 30.0) -> Dict[str, Any]:
+        headers = {"x-api-key": self.api_key, "Content-Type": "application/json"}
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            resp = await client.get(f"{self.base_url}{path}", headers=headers)
+        if resp.status_code >= 400:
+            raise LyzrClientError(f"Lyzr API {path} -> {resp.status_code}: {resp.text[:300]}")
+        try:
+            return resp.json()
+        except Exception:
+            return {"raw": resp.text}
+
     async def _post(self, path: str, payload: Dict[str, Any], timeout: float = 30.0) -> Dict[str, Any]:
         headers = {"x-api-key": self.api_key, "Content-Type": "application/json"}
         async with httpx.AsyncClient(timeout=timeout) as client:
@@ -54,6 +65,22 @@ class LyzrClient:
             return resp.json()
         except Exception:
             return {"raw": resp.text}
+
+    # ------------------------------------------------------------------
+    # Agent lookup
+    # ------------------------------------------------------------------
+    async def find_agent_by_name(self, name: str) -> Optional[str]:
+        """Returns the agent_id of the first agent whose name matches, or None."""
+        if not name:
+            return None
+        resp = await self._get("/v3/agents/")
+        agents = resp if isinstance(resp, list) else resp.get("agents") or resp.get("data") or []
+        for a in agents:
+            if a.get("name") == name:
+                aid = a.get("_id") or a.get("id") or a.get("agent_id")
+                if aid:
+                    return aid
+        return None
 
     # ------------------------------------------------------------------
     # Agent lifecycle

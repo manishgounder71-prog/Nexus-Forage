@@ -196,7 +196,7 @@ async def list_events(org_id: str, limit: int = Query(50, le=500), db: AsyncSess
 # ── Incidents + command center ──────────────────────────────────
 @router.get("/orgs/{org_id}/incidents")
 async def list_incidents(org_id: str, principal=Depends(require_role("VIEWER"))):
-    incidents = incident_store.list(org_id)
+    incidents = await incident_store.list(org_id)
     return {"incidents": incidents, "count": len(incidents)}
 
 
@@ -204,7 +204,7 @@ async def list_incidents(org_id: str, principal=Depends(require_role("VIEWER")))
 async def incident_command(org_id: str, incident_id: str, cmd: CommandRequest,
                            db: AsyncSession = Depends(get_db),
                            principal=Depends(require_role("OPERATOR"))):
-    incident = incident_store.get(incident_id)
+    incident = await incident_store.get(incident_id)
     if incident is None or incident.get("org_id") != org_id:
         raise HTTPException(404, "Incident not found")
 
@@ -218,10 +218,16 @@ async def incident_command(org_id: str, incident_id: str, cmd: CommandRequest,
     elif action == "run_mission":
         from app.pipeline.incident_bridge import incident_bridge
         crisis = incident.get("crisis") or {"is_crisis": True, "reasons": ["manual-trigger"], "priority": "P1"}
-        mission_id = await incident_bridge._launch(incident_id, crisis, incident)
+        verdict = {"is_crisis": True, "reasons": crisis.get("reasons", ["manual-trigger"]),
+                   "priority": crisis.get("priority", "P1"), "signals": crisis.get("signals", []),
+                   "incident": incident}
+        mission_id = await incident_bridge._launch(incident_id, verdict, incident)
         incident["mission_id"] = mission_id
     else:
         raise HTTPException(400, f"Unsupported action: {action}")
+
+    # Persist the status change to the durable incidents table.
+    await incident_store.upsert(incident)
 
     await _write_audit(db, org_id, principal.actor, f"incident_{action}", "incident", incident_id,
                        {"payload": cmd.payload})
@@ -358,5 +364,8 @@ async def _write_audit(db: AsyncSession, org_id, actor, action, resource_type, r
                            resource_id=resource_id, details=details or {}))
     try:
         await db.commit()
-    except Exception:
+    except Exception as e:
+        import logging
+        logging.getLogger("nexus_forge.connectors").warning(
+            f"Audit write failed for {action} on {resource_type}:{resource_id}: {e}")
         await db.rollback()

@@ -325,7 +325,9 @@ document.addEventListener('DOMContentLoaded', () => {
       const audioBlob = audioChunks.length > 0 ? new Blob(audioChunks, { type: 'audio/webm' }) : new Blob([new Uint8Array(1024)], { type: 'audio/wav' });
       formData.append('file', audioBlob, 'omi_voice_capture.webm');
 
-      const url = `http://localhost:8000/api/v1/missions/voice-ingest?auto_launch=true${finalSpoken ? `&transcript_hint=${encodeURIComponent(finalSpoken)}` : ''}`;
+      const url = window.NexusConfig 
+        ? window.NexusConfig.getApiUrl(`/api/v1/missions/voice-ingest?auto_launch=true${finalSpoken ? `&transcript_hint=${encodeURIComponent(finalSpoken)}` : ''}`)
+        : `http://localhost:8000/api/v1/missions/voice-ingest?auto_launch=true${finalSpoken ? `&transcript_hint=${encodeURIComponent(finalSpoken)}` : ''}`;
       const response = await fetch(url, {
         method: 'POST',
         body: formData
@@ -412,7 +414,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     try {
-      const response = await fetch('http://localhost:8000/api/v1/missions', {
+      const createMissionUrl = window.NexusConfig ? window.NexusConfig.getApiUrl('/api/v1/missions') : 'http://localhost:8000/api/v1/missions';
+      const response = await fetch(createMissionUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ raw_prompt: promptText })
@@ -721,7 +724,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (pollingInterval) clearInterval(pollingInterval);
     pollingInterval = setInterval(async () => {
       try {
-        const res = await fetch(`http://localhost:8000/api/v1/missions/${missionId}/events`);
+        const eventsUrl = window.NexusConfig ? window.NexusConfig.getApiUrl(`/api/v1/missions/${missionId}/events`) : `http://localhost:8000/api/v1/missions/${missionId}/events`;
+        const res = await fetch(eventsUrl);
         if (res.ok) {
           const events = await res.json();
           if (events && events.length > 0) {
@@ -743,7 +747,8 @@ document.addEventListener('DOMContentLoaded', () => {
     startPollingFallback(missionId);
 
     try {
-      activeWebSocket = new WebSocket(`ws://localhost:8000/ws/missions/${missionId}`);
+      const wsUrl = window.NexusConfig ? window.NexusConfig.getWsUrl(`/ws/missions/${missionId}`) : `ws://localhost:8000/ws/missions/${missionId}`;
+      activeWebSocket = new WebSocket(wsUrl);
       
       activeWebSocket.onopen = () => {
         logStream('SYSTEM', `WebSocket Stream Connected: /ws/missions/${missionId}`);
@@ -1063,7 +1068,8 @@ document.addEventListener('DOMContentLoaded', () => {
   async function restoreActiveMission() {
     if (!activeMissionId) return;
     try {
-      const resp = await fetch(`http://localhost:8000/api/v1/missions/${activeMissionId}/events`);
+      const restoreEventsUrl = window.NexusConfig ? window.NexusConfig.getApiUrl(`/api/v1/missions/${activeMissionId}/events`) : `http://localhost:8000/api/v1/missions/${activeMissionId}/events`;
+      const resp = await fetch(restoreEventsUrl);
       if (resp.ok) {
         const events = await resp.json();
         if (events && events.length > 0) {
@@ -1266,7 +1272,8 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
       // Global 28 Agent Pool
       try {
-        const res = await fetch('http://localhost:8000/api/v1/agents');
+        const agentsUrl = window.NexusConfig ? window.NexusConfig.getApiUrl('/api/v1/agents') : 'http://localhost:8000/api/v1/agents';
+        const res = await fetch(agentsUrl);
         if (res.ok) {
           const allAgents = await res.json();
           const deployedIds = new Set(scenarioSpec.agents.map(a => a.id.toLowerCase()));
@@ -1941,7 +1948,8 @@ document.addEventListener('DOMContentLoaded', () => {
   // 2. Live Telemetry HUD Poller
   async function pollHUDTelemetry() {
     try {
-      const res = await fetch('http://localhost:8000/api/v1/analytics/overview');
+      const analyticsUrl = window.NexusConfig ? window.NexusConfig.getApiUrl('/api/v1/analytics/overview') : 'http://localhost:8000/api/v1/analytics/overview';
+      const res = await fetch(analyticsUrl);
       if (res.ok) {
         const data = await res.json();
         const latencyEl = document.getElementById('telemetry-latency-val');
@@ -1966,7 +1974,8 @@ document.addEventListener('DOMContentLoaded', () => {
       const missionId = activeMissionId || 'msn_executive_dossier';
       showNexusToast('Compiling crisis incident dossier...', 'info', 'fa-file-invoice');
       try {
-        const res = await fetch(`http://localhost:8000/api/v1/missions/${missionId}/export`);
+        const exportUrl = window.NexusConfig ? window.NexusConfig.getApiUrl(`/api/v1/missions/${missionId}/export`) : `http://localhost:8000/api/v1/missions/${missionId}/export`;
+        const res = await fetch(exportUrl);
         let dossierData;
         if (res.ok) {
           dossierData = await res.json();
@@ -2013,6 +2022,139 @@ document.addEventListener('DOMContentLoaded', () => {
   if (kbdClose) kbdClose.addEventListener('click', () => toggleKbdModal(false));
   if (kbdDismiss) kbdDismiss.addEventListener('click', () => toggleKbdModal(false));
 
+  // 4b. Backend Server Config Modal & Live Health Poller (for Vercel + Render)
+  const backendPill = document.getElementById('backend-endpoint-pill');
+  const backendModal = document.getElementById('backend-config-modal');
+  const backendClose = document.getElementById('backend-modal-close');
+  const backendInput = document.getElementById('backend-url-input');
+  const backendTestBtn = document.getElementById('backend-test-btn');
+  const backendSaveBtn = document.getElementById('backend-save-btn');
+  const backendResetBtn = document.getElementById('backend-reset-btn');
+  const backendFeedback = document.getElementById('backend-test-feedback');
+  const backendLabel = document.getElementById('backend-endpoint-label');
+  const backendIcon = document.getElementById('backend-endpoint-icon');
+
+  function updateBackendPill() {
+    if (!window.NexusConfig) return;
+    const url = window.NexusConfig.getBackendUrl();
+    if (backendLabel) {
+      if (url.includes('localhost') || url.includes('127.0.0.1')) {
+        backendLabel.innerText = 'LOCAL (:8000)';
+      } else {
+        try {
+          const u = new URL(url);
+          backendLabel.innerText = u.hostname.replace('.onrender.com', '').toUpperCase();
+        } catch (_) {
+          backendLabel.innerText = 'CLOUD';
+        }
+      }
+    }
+  }
+
+  async function checkBackendConnection() {
+    if (!window.NexusConfig) return;
+    updateBackendPill();
+    const result = await window.NexusConfig.checkHealth(6000);
+    if (result.ok) {
+      if (backendIcon) {
+        backendIcon.className = 'fa-solid fa-cloud-bolt';
+        backendIcon.style.color = '#10b981';
+      }
+      if (backendPill) {
+        backendPill.style.borderColor = 'rgba(16, 185, 129, 0.4)';
+        backendPill.style.background = 'rgba(16, 185, 129, 0.1)';
+      }
+    } else if (result.isRenderSleep) {
+      if (backendIcon) {
+        backendIcon.className = 'fa-solid fa-spinner fa-spin';
+        backendIcon.style.color = '#f59e0b';
+      }
+      if (backendLabel) backendLabel.innerText = 'WAKING UP...';
+      if (backendPill) {
+        backendPill.style.borderColor = 'rgba(245, 158, 11, 0.4)';
+        backendPill.style.background = 'rgba(245, 158, 11, 0.1)';
+      }
+    } else {
+      if (backendIcon) {
+        backendIcon.className = 'fa-solid fa-triangle-exclamation';
+        backendIcon.style.color = '#ef4444';
+      }
+      if (backendPill) {
+        backendPill.style.borderColor = 'rgba(239, 68, 68, 0.4)';
+        backendPill.style.background = 'rgba(239, 68, 68, 0.1)';
+      }
+    }
+  }
+
+  if (backendPill) {
+    backendPill.addEventListener('click', () => {
+      if (backendInput && window.NexusConfig) {
+        backendInput.value = window.NexusConfig.getBackendUrl();
+      }
+      if (backendFeedback) backendFeedback.innerHTML = '';
+      if (backendModal) backendModal.style.display = 'flex';
+    });
+  }
+
+  if (backendClose) {
+    backendClose.addEventListener('click', () => {
+      if (backendModal) backendModal.style.display = 'none';
+    });
+  }
+
+  if (backendTestBtn) {
+    backendTestBtn.addEventListener('click', async () => {
+      const testUrl = (backendInput?.value || '').trim().replace(/\/+$/, '');
+      if (!testUrl) {
+        if (backendFeedback) backendFeedback.innerHTML = '<span style="color:#ef4444;">Please enter a valid URL.</span>';
+        return;
+      }
+      backendFeedback.innerHTML = '<span style="color:#f59e0b;"><i class="fa-solid fa-spinner fa-spin"></i> Pinging ' + testUrl + '/ping ... (may take ~30s if Render is sleeping)</span>';
+      try {
+        const start = performance.now();
+        const res = await fetch(testUrl + '/ping', { method: 'GET' });
+        const elapsed = Math.round(performance.now() - start);
+        if (res.ok) {
+          backendFeedback.innerHTML = `<span style="color:#10b981;"><i class="fa-solid fa-circle-check"></i> Connected successfully in ${elapsed}ms! Status: 200 OK</span>`;
+        } else {
+          backendFeedback.innerHTML = `<span style="color:#ef4444;"><i class="fa-solid fa-triangle-exclamation"></i> Server returned HTTP ${res.status}</span>`;
+        }
+      } catch (err) {
+        backendFeedback.innerHTML = `<span style="color:#ef4444;"><i class="fa-solid fa-circle-xmark"></i> Connection failed: ${err.message}. If using Render free tier, wait 30s for spin-up.</span>`;
+      }
+    });
+  }
+
+  if (backendSaveBtn) {
+    backendSaveBtn.addEventListener('click', () => {
+      const url = (backendInput?.value || '').trim();
+      if (window.NexusConfig) {
+        window.NexusConfig.setBackendUrl(url);
+      }
+      if (backendModal) backendModal.style.display = 'none';
+      showNexusToast(`Backend configured: ${url || 'Default'}`, 'success', 'fa-server');
+      checkBackendConnection();
+      if (window.connectorCenter && typeof window.connectorCenter.connect === 'function') {
+        window.connectorCenter.connect();
+      }
+    });
+  }
+
+  if (backendResetBtn) {
+    backendResetBtn.addEventListener('click', () => {
+      if (window.NexusConfig) {
+        window.NexusConfig.setBackendUrl('');
+        if (backendInput) backendInput.value = window.NexusConfig.getBackendUrl();
+      }
+      if (backendFeedback) backendFeedback.innerHTML = '<span style="color:#a78bfa;">Reset to default endpoint.</span>';
+      checkBackendConnection();
+    });
+  }
+
+  // Initial check and periodic health poll
+  checkBackendConnection();
+  setInterval(checkBackendConnection, 20000);
+
   const viewKeys = {
     '1': 'command-center',
     '2': 'live-mission',
@@ -2047,7 +2189,8 @@ document.addEventListener('DOMContentLoaded', () => {
     } else if (e.key.toLowerCase() === 'b') {
       e.preventDefault();
       showNexusToast('Triggering high-velocity anomaly burst simulation...', 'warning', 'fa-bolt');
-      fetch('http://localhost:8000/api/v1/platform/simulate-burst', {
+      const burstUrl = window.NexusConfig ? window.NexusConfig.getApiUrl('/api/v1/platform/simulate-burst') : 'http://localhost:8000/api/v1/platform/simulate-burst';
+      fetch(burstUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ event_count: 5, source: 'monitoring' })

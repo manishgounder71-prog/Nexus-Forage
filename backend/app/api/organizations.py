@@ -392,13 +392,13 @@ async def list_organization_events(
 
 @router.get("/{id}/incidents")
 async def list_organization_incidents(id: str, db: AsyncSession = Depends(get_db)):
-    incidents = incident_store.list(id)
+    incidents = await incident_store.list(id)
     return {"incidents": incidents, "count": len(incidents)}
 
 
 @router.get("/{id}/incidents/{incident_id}")
 async def get_organization_incident(id: str, incident_id: str, db: AsyncSession = Depends(get_db)):
-    inc = incident_store.get(incident_id)
+    inc = await incident_store.get(incident_id)
     if not inc or inc.get("org_id") != id:
         raise HTTPException(status_code=404, detail="Incident not found")
     return {"incident": inc}
@@ -467,7 +467,7 @@ async def get_organization_dashboard(id: str, db: AsyncSession = Depends(get_db)
     events_count = len(
         (await db.execute(select(M.NexusEventModel.id).where(M.NexusEventModel.org_id == id))).scalars().all()
     )
-    incidents = incident_store.list(id)
+    incidents = await incident_store.list(id)
     active_incidents = len([i for i in incidents if i.get("status") != "RESOLVED"])
     pending_approvals = len(await action_policy_engine.list_approvals(id, status_filter="PENDING"))
     missions_count = len(

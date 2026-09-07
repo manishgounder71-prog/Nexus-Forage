@@ -12,7 +12,9 @@
 (function () {
   'use strict';
 
-  const API = 'http://localhost:8000/api/v1';
+  function getApiBase() {
+    return window.NexusConfig ? window.NexusConfig.getApiUrl('/api/v1') : 'http://localhost:8000/api/v1';
+  }
   let currentOrgId = 'org_acme_digital';
   let currentPublicId = 'org_acme_digital_pub';
   let currentOrgName = 'ACME DIGITAL';
@@ -40,7 +42,7 @@
 
   // ── API helpers ───────────────────────────────────────────────
   async function api(path, options) {
-    const res = await fetch(API + path, options);
+    const res = await fetch(getApiBase() + path, options);
     if (!res.ok) {
       let errText = `HTTP ${res.status}`;
       try {
@@ -127,7 +129,7 @@
           <div class="cc-conn-status-pill ${c.status === 'CONNECTED' ? 'ok' : ''}">${esc(c.status)}</div>
         </div>`).join('');
     } catch (e) {
-      box.innerHTML = `<div class="cc-empty">Backend unreachable: ${esc(e.message)}. Ensure backend is running on :8000.</div>`;
+      box.innerHTML = `<div class="cc-empty">Backend unreachable: ${esc(e.message)}. Ensure backend is running or configured in Settings.</div>`;
     }
   }
 
@@ -267,7 +269,9 @@
   function connect() {
     if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return;
     setWsStatus('CONNECTING');
-    const wsUrl = `ws://localhost:8000/ws/organizations/${currentOrgId}/events`;
+    const wsUrl = window.NexusConfig 
+      ? window.NexusConfig.getWsUrl(`/ws/organizations/${currentOrgId}/events`)
+      : `ws://localhost:8000/ws/organizations/${currentOrgId}/events`;
     ws = new WebSocket(wsUrl);
     ws.onopen = () => { setWsStatus('LIVE'); pushEvent('info', 'SYSTEM', `Connected to organization stream (${currentOrgId})`); };
     ws.onmessage = (evt) => {
@@ -411,7 +415,8 @@
         currentPublicId = org.public_id;
         currentOrgName = org.name;
 
-        document.getElementById('ob-endpoint-box').innerText = `POST http://localhost:8000${org.ingestion_endpoint}`;
+        const baseHttp = window.NexusConfig ? window.NexusConfig.getHttpBase() : 'http://localhost:8000';
+        document.getElementById('ob-endpoint-box').innerText = `POST ${baseHttp}${org.ingestion_endpoint}`;
         document.getElementById('ob-secret-box').innerText = org.ingestion_secret;
         document.getElementById('ob-result').style.display = 'block';
         submitBtn.style.display = 'none';
@@ -422,7 +427,7 @@
           testBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> DELIVERING TEST WEBHOOK…';
 
           try {
-            await fetch(`http://localhost:8000${org.ingestion_endpoint}`, {
+            await fetch(`${baseHttp}${org.ingestion_endpoint}`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
@@ -461,7 +466,9 @@
     const container = document.getElementById('cc-modal-container');
     if (!container) return;
 
-    const endpointUrl = `http://localhost:8000/api/v1/ingest/${currentPublicId}`;
+    const endpointUrl = window.NexusConfig
+      ? window.NexusConfig.getApiUrl(`/api/v1/ingest/${currentPublicId}`)
+      : `http://localhost:8000/api/v1/ingest/${currentPublicId}`;
 
     container.innerHTML = `
       <div class="cc-modal-backdrop" id="cc-modal-backdrop">

@@ -1,6 +1,6 @@
 import os
 from typing import List
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "NEXUS FORGE — Autonomous Crisis Command"
@@ -37,9 +37,13 @@ class Settings(BaseSettings):
     RATE_LIMIT_PER_MINUTE: int = int(os.getenv("RATE_LIMIT_PER_MINUTE", "60"))
     DEMO_ORG_ID: str = os.getenv("DEMO_ORG_ID", "org_acme_digital")
 
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
-        extra = "ignore"
+    model_config = SettingsConfigDict(
+        env_file=[
+            os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), ".env"),
+            ".env"
+        ],
+        case_sensitive=True,
+        extra="ignore"
+    )
 
 settings = Settings()

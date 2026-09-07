@@ -24,7 +24,7 @@ class InterAgentCommunicator:
             message_type=message_type,
             content=content,
             confidence=confidence,
-            timestamp=datetime.datetime.utcnow().isoformat()
+            timestamp=datetime.datetime.now(datetime.timezone.utc).isoformat()
         )
         self.message_store.append(msg)
         return msg

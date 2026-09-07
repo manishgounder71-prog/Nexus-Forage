@@ -7,8 +7,52 @@ from app.core.config import settings
 from app.agents.base import BaseAgent
 from app.agents.lyzr_client import LyzrClient, LyzrClientError
 
+import time
 import logging
 logger = logging.getLogger("nexus_forge.lyzr_runtime")
+
+
+class LyzrCircuitBreaker:
+    """
+    Guards against repeated live Lyzr inference failures so the mission pipeline
+    stays fast and robust when the Lyzr platform is unavailable.
+
+    Behavior:
+      - Closed: attempts live Lyzr inference.
+      - After `failure_threshold` consecutive live failures the breaker OPENS,
+        skipping live calls and running the local runtime immediately.
+      - After `recovery_timeout` seconds it half-opens and retries live; if a
+        call then succeeds it CLOSES (live Lyzr restored) and if it fails again
+        it stays open. This lets the system transparently resume live Lyzr if
+        the platform recovers — no code change or key removal required.
+    """
+
+    def __init__(self, failure_threshold: int = 3, recovery_timeout: float = 300.0):
+        self.failure_threshold = failure_threshold
+        self.recovery_timeout = recovery_timeout
+        self.failures = 0
+        self.open_since: Optional[float] = None
+
+    def allow_live(self) -> bool:
+        if self.failures < self.failure_threshold:
+            return True
+        if self.open_since is None:
+            self.open_since = time.time()
+        if time.time() - self.open_since >= self.recovery_timeout:
+            return True
+        return False
+
+    def record_success(self) -> None:
+        self.failures = 0
+        self.open_since = None
+
+    def record_failure(self) -> None:
+        self.failures += 1
+        if self.failures >= self.failure_threshold:
+            self.open_since = time.time()
+
+
+_lyzr_breaker = LyzrCircuitBreaker()
 
 class LyzrAgentRuntimeAdapter(BaseAgent):
     """
@@ -46,11 +90,23 @@ class LyzrAgentRuntimeAdapter(BaseAgent):
         return lyzr_configured()
 
     async def _ensure_lyzr_agent(self) -> Optional[str]:
-        """Provisions a Lyzr agent for this runtime on first use; returns its agent_id."""
+        """Provisions a Lyzr agent for this runtime on first use; returns its agent_id.
+
+        Reuses an existing agent with the same name when present (avoids creating
+        duplicate agents in the Lyzr workspace across restarts), otherwise creates
+        a new one.
+        """
         if not self.has_lyzr_key:
             return None
         if self.lyzr_agent_id:
             return self.lyzr_agent_id
+        try:
+            existing = await self.lyzr_client.find_agent_by_name(self.name)
+            if existing:
+                self.lyzr_agent_id = existing
+                return self.lyzr_agent_id
+        except LyzrClientError:
+            pass
         try:
             self.lyzr_agent_id = await self.lyzr_client.create_agent(
                 name=self.name,
@@ -72,12 +128,12 @@ class LyzrAgentRuntimeAdapter(BaseAgent):
         falls back to a deterministic local reasoning loop so the system remains fully
         functional offline and in demo mode.
         """
-        start_time = datetime.datetime.utcnow()
+        start_time = datetime.datetime.now(datetime.timezone.utc)
         task_id = f"tsk_{uuid.uuid4().hex[:6]}"
         prompt = input_context.get("prompt", "")
 
         # --- Real Lyzr execution path ------------------------------------------
-        if self.has_lyzr_key and not _force_local:
+        if self.has_lyzr_key and not _force_local and _lyzr_breaker.allow_live():
             agent_id = await self._ensure_lyzr_agent()
             if agent_id:
                 try:
@@ -100,7 +156,7 @@ class LyzrAgentRuntimeAdapter(BaseAgent):
                                 break
                     llm_text = answer if isinstance(answer, str) else (answer.get("message") if isinstance(answer, dict) else str(result))
                     confidence = result.get("confidence", 0.95)
-                    duration_ms = int((datetime.datetime.utcnow() - start_time).total_seconds() * 1000) + 1
+                    duration_ms = int((datetime.datetime.now(datetime.timezone.utc) - start_time).total_seconds() * 1000) + 1
                     output_payload = {
                         "task_id": task_id,
                         "task_name": task_name,
@@ -115,14 +171,18 @@ class LyzrAgentRuntimeAdapter(BaseAgent):
                         "reasoning_trace": str(llm_text)[:600],
                         "deliverable": str(llm_text)[:600] or f"Autonomous deliverable produced for '{task_name}' via Lyzr.",
                         "execution_duration_ms": duration_ms,
-                        "timestamp": datetime.datetime.utcnow().isoformat(),
+                        "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
                         "provider": "lyzr",
                     }
+                    _lyzr_breaker.record_success()
                     self.execution_history.append(output_payload)
                     self.total_missions += 1
                     return output_payload
                 except (httpx.HTTPError, LyzrClientError, KeyError) as e:
-                    logger.warning(f"Lyzr live execution failed for '{task_name}' ({e}); falling back to local runtime.")
+                    _lyzr_breaker.record_failure()
+                    logger.warning(f"Lyzr live execution failed for '{task_name}' ({e}); using resilient runtime.")
+            else:
+                _lyzr_breaker.record_failure()
 
         # --- Deterministic local fallback --------------------------------------
         await asyncio.sleep(0.35)  # Realistic agent thinking latency in offline mode
@@ -139,7 +199,7 @@ class LyzrAgentRuntimeAdapter(BaseAgent):
         confidence = round(0.89 + (len(self.capabilities) * 0.015), 2)
         confidence = min(confidence, 0.98)
 
-        duration_ms = int((datetime.datetime.utcnow() - start_time).total_seconds() * 1000) + 380
+        duration_ms = int((datetime.datetime.now(datetime.timezone.utc) - start_time).total_seconds() * 1000) + 380
 
         output_payload = {
             "task_id": task_id,
@@ -155,42 +215,7 @@ class LyzrAgentRuntimeAdapter(BaseAgent):
             "reasoning_trace": f"[{self.name}] Resolved task '{task_name}' utilizing {tools_used[0]}. Output validated with {int(confidence*100)}% certainty.",
             "deliverable": f"Autonomous deliverable produced for '{task_name}' with verified failover safety.",
             "execution_duration_ms": duration_ms,
-            "timestamp": datetime.datetime.utcnow().isoformat()
-        }
-
-        self.execution_history.append(output_payload)
-        self.total_missions += 1
-        return output_payload
-        
-        # Determine specialized reasoning based on agent division and specialization
-        tools_used = self._determine_tools_used(task_name)
-        thought_steps = [
-            f"1. Context Ingestion: Loaded mission context for '{task_name}'.",
-            f"2. Capability Matrix Alignment: Applied specialization '{self.specialization}'.",
-            f"3. Tool Invocations: Executed {', '.join(tools_used)}.",
-            f"4. Deliverable Verification: Validated security & failover parameters with confidence score."
-        ]
-
-        confidence = round(0.89 + (len(self.capabilities) * 0.015), 2)
-        confidence = min(confidence, 0.98)
-
-        duration_ms = int((datetime.datetime.utcnow() - start_time).total_seconds() * 1000) + 380
-
-        output_payload = {
-            "task_id": task_id,
-            "task_name": task_name,
-            "agent_id": self.agent_id,
-            "executed_by": self.name,
-            "division": self.division,
-            "specialization": self.specialization,
-            "confidence": confidence,
-            "framework": "Lyzr Automata SDK (Solo Agent Runtime)",
-            "thought_chain": thought_steps,
-            "tools_invoked": tools_used,
-            "reasoning_trace": f"[{self.name}] Resolved task '{task_name}' utilizing {tools_used[0]}. Output validated with {int(confidence*100)}% certainty.",
-            "deliverable": f"Autonomous deliverable produced for '{task_name}' with verified failover safety.",
-            "execution_duration_ms": duration_ms,
-            "timestamp": datetime.datetime.utcnow().isoformat()
+            "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat()
         }
 
         self.execution_history.append(output_payload)

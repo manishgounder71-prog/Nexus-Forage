@@ -236,7 +236,36 @@ backend/
     memory/                 qdrant_client (tenant-isolated Qdrant), retriever, writer
     orchestration/          mission_engine, dag_engine, adaptive_org_engine, debate_engine
     db/                     Async SQLAlchemy models (ActionApproval, OrganizationPolicy, Organization, Mission, etc.)
-  tests/                    pytest suite (38 tests: security, tenant isolation, mission flow, sponsor stack)
+  tests/                    pytest suite (54 comprehensive tests covering security, tenant isolation, mission flow, and sponsor stack)
+frontend/
+  tests/                    Node.js test suite (5 UI, DAG algorithm, vector distance, and audio synthesis tests)
 ```
+
+---
+
+## Production Deployment (Render + Vercel)
+
+### 1. Backend on Render
+- **Blueprint Deploy**: Connect your GitHub repository to [Render](https://render.com). Render automatically detects `render.yaml` at the root.
+- **Manual Web Service Deploy**:
+  - Environment: `Python 3`
+  - Build Command: `pip install -r backend/requirements.txt`
+  - Start Command: `uvicorn app.main:app --host 0.0.0.0 --port $PORT` (or use `backend/Procfile`)
+  - Root Directory: `backend`
+  - Add environment variables as listed in `backend/.env.example` (or set `DEMO_MODE=true` for zero-configuration startup).
+
+### 2. Frontend on Vercel
+- Import the repo into [Vercel](https://vercel.com).
+- Root Directory: `./frontend` (or root using `vercel.json`).
+- Framework Preset: `Other` (Static HTML/JS).
+- The frontend dynamically detects if it's running on localhost or cloud. In the UI, click **Backend: Connected** (top right) to view or override the API URL anytime.
+
+### 3. Uptime Bot (Render Free Tier Sleep Prevention)
+- Add a periodic monitor (e.g. [UptimeRobot](https://uptimerobot.com) or [Cron-Job.org]) pinging your Render backend every 5–10 minutes:
+  - **URL**: `https://<your-render-backend-url>/ping`
+  - **Method**: `GET` or `HEAD`
+  - Returns: `200 OK` with `{"status": "ok", "pong": true}` with minimal resource consumption.
+
+---
 
 See `ARCHITECTURE.md` for the detailed integration design and data flow.

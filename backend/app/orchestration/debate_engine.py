@@ -24,7 +24,7 @@ class AgentParliamentEngine:
         Executes 5-stage spatial Agent Parliament deliberation loop.
         Integrates modular Domain Pack consensus frameworks and minority dissent tracking.
         """
-        debate_id = f"deb_{int(datetime.datetime.utcnow().timestamp())}"
+        debate_id = f"deb_{int(datetime.datetime.now(datetime.timezone.utc).timestamp())}"
         messages = []
 
         if event_callback:
@@ -57,7 +57,7 @@ class AgentParliamentEngine:
 
             phase_msg = {
                 "phase": phase,
-                "timestamp": datetime.datetime.utcnow().isoformat(),
+                "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
                 "agent_id": speaker_id,
                 "agent_name": speaker_name,
                 "content": f"[{speaker_name}] {speech_text}"
