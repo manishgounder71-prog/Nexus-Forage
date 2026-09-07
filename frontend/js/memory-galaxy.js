@@ -33,11 +33,19 @@ class MemoryGalaxyEngine {
 
     this.draggedNode = null;
     this.dragOffsetX = 0;
-    this.dragOffsetY = 0;
-
-    this.ripples = [];
+    this.dragOffsetY = 0;    this.ripples = [];
     this.pulsePhase = 0;
     this.frame = 0;
+    this.radarAngle = 0;
+
+    // Ambient 3D Starfield particles
+    this.stars = Array.from({ length: 65 }, () => ({
+      x: Math.random() * 1200,
+      y: Math.random() * 800,
+      s: Math.random() * 1.5 + 0.4,
+      a: Math.random() * Math.PI * 2,
+      speed: Math.random() * 0.015 + 0.005
+    }));
 
     this.currentScenarioTitle = 'Production Deployment Incident';
     this.memories = this.getMemoriesForScenario('production deployment');
@@ -67,18 +75,25 @@ class MemoryGalaxyEngine {
     const isStartup = lc.includes('startup') || lc.includes('runway') || lc.includes('burn') || lc.includes('equity') || lc.includes('investor') || lc.includes('venture') || lc.includes('funding');
     const isSoftware = lc.includes('software') || lc.includes('production') || lc.includes('deployment') || lc.includes('checkout') || lc.includes('database') || lc.includes('connection') || lc.includes('pool') || lc.includes('pod') || lc.includes('sre') || lc.includes('rollback') || lc.includes('microservice') || lc.includes('kubernetes') || lc.includes('incident');
 
+    // Helper to generate full 384-dim array deterministically
+    const make384 = (seedStr) => {
+      let seed = 0;
+      for (let i = 0; i < seedStr.length; i++) seed += seedStr.charCodeAt(i);
+      return Array.from({ length: 384 }, (_, i) => +(Math.sin(seed * (i + 1)) * Math.cos(i * 0.28) * 0.94).toFixed(4));
+    };
+
     // 1. Power Grid / SCADA Cyber Attack
     if (isGrid) {
       this.currentScenarioTitle = 'Power Grid SCADA Incident';
       return [
-        { id: 'VEC_GRD_849', title: 'SCADA Substation 04 Breach 2025', category: 'mission', similarity: 96.4, payload: 'Unauthorized PLC command packet injection on Substation 04. Air-gapped loops stopped breach in 15 mins.', vector: [0.092, -0.412, 0.884, 0.123, -0.054, 0.731], tags: ['scada','substation','airgap'] },
-        { id: 'VEC_GRD_910', title: 'Grid Failover Protocol 2025',      category: 'decision', similarity: 94.0, payload: 'Consensus: Deploy Plan B microgrid failover loops. Zero grid blackout recorded.', vector: [0.312, 0.104, -0.652, 0.441, 0.891, -0.212], tags: ['failover','microgrid'] },
-        { id: 'VEC_GRD_332', title: 'Single Point Substation Failure',  category: 'failure',  similarity: 89.1, payload: 'Direct breaker trip without feeder load shedding caused 3-hour secondary blackout.', vector: [-0.821, 0.431, 0.120, -0.902, 0.231, 0.512], tags: ['failure','blackout'] },
-        { id: 'VEC_GRD_771', title: 'Risk SCADA Air-Gap Dissent',       category: 'dissent',  similarity: 92.8, payload: 'Risk Agent Warning: Immediate trip without frequency balance overloads Substation 11 feeders.', vector: [0.512, -0.732, 0.392, 0.110, -0.451, 0.344], tags: ['risk','frequency'] },
-        { id: 'VEC_GRD_554', title: 'RTU Firmware Validation',           category: 'mission',  similarity: 91.5, payload: 'Pre-staged cryptographically signed RTU firmware images at Substations 04 & 09.', vector: [0.120, 0.892, -0.231, 0.651, 0.334, -0.402], tags: ['firmware','rtu'] },
-        { id: 'VEC_GRD_110', title: 'SCADA Interlock Standard',          category: 'decision', similarity: 97.2, payload: 'Enforced hardware air-gap interlock standard for all metropolitan high-voltage substations.', vector: [0.771, -0.124, 0.901, -0.342, 0.512, 0.211], tags: ['standard','interlock'] },
-        { id: 'VEC_GRD_204', title: 'Feeder Load Shedding Policy',       category: 'decision', similarity: 88.4, payload: 'Automated 10% industrial load-shedding triggered during grid frequency drops below 59.8Hz.', vector: [-0.341, 0.621, 0.412, 0.821, -0.192, 0.533], tags: ['feeder','load-shedding'] },
-        { id: 'VEC_GRD_682', title: 'SCADA Master Spoofing Signature',   category: 'failure',  similarity: 86.9, payload: 'Intruder spoofed SCADA master IP to send forced trip signals. Mitigated by TLS 1.3 mutual auth.', vector: [0.912, -0.312, -0.421, 0.119, 0.762, -0.344], tags: ['intruder','tls'] }
+        { id: 'VEC_GRD_849', title: 'SCADA Substation 04 Breach 2025', category: 'mission', similarity: 96.4, payload: 'Unauthorized PLC command packet injection on Substation 04. Air-gapped loops stopped breach in 15 mins.', vector: [0.092, -0.412, 0.884, 0.123, -0.054, 0.731], fullVector: make384('GRD_849'), tags: ['scada','substation','airgap'] },
+        { id: 'VEC_GRD_910', title: 'Grid Failover Protocol 2025',      category: 'decision', similarity: 94.0, payload: 'Consensus: Deploy Plan B microgrid failover loops. Zero grid blackout recorded.', vector: [0.312, 0.104, -0.652, 0.441, 0.891, -0.212], fullVector: make384('GRD_910'), tags: ['failover','microgrid'] },
+        { id: 'VEC_GRD_332', title: 'Single Point Substation Failure',  category: 'failure',  similarity: 89.1, payload: 'Direct breaker trip without feeder load shedding caused 3-hour secondary blackout.', vector: [-0.821, 0.431, 0.120, -0.902, 0.231, 0.512], fullVector: make384('GRD_332'), tags: ['failure','blackout'] },
+        { id: 'VEC_GRD_771', title: 'Risk SCADA Air-Gap Dissent',       category: 'dissent',  similarity: 92.8, payload: 'Risk Agent Warning: Immediate trip without frequency balance overloads Substation 11 feeders.', vector: [0.512, -0.732, 0.392, 0.110, -0.451, 0.344], fullVector: make384('GRD_771'), tags: ['risk','frequency'] },
+        { id: 'VEC_GRD_554', title: 'RTU Firmware Validation',           category: 'mission',  similarity: 91.5, payload: 'Pre-staged cryptographically signed RTU firmware images at Substations 04 & 09.', vector: [0.120, 0.892, -0.231, 0.651, 0.334, -0.402], fullVector: make384('GRD_554'), tags: ['firmware','rtu'] },
+        { id: 'VEC_GRD_110', title: 'SCADA Interlock Standard',          category: 'decision', similarity: 97.2, payload: 'Enforced hardware air-gap interlock standard for all metropolitan high-voltage substations.', vector: [0.771, -0.124, 0.901, -0.342, 0.512, 0.211], fullVector: make384('GRD_110'), tags: ['standard','interlock'] },
+        { id: 'VEC_GRD_204', title: 'Feeder Load Shedding Policy',       category: 'decision', similarity: 88.4, payload: 'Automated 10% industrial load-shedding triggered during grid frequency drops below 59.8Hz.', vector: [-0.341, 0.621, 0.412, 0.821, -0.192, 0.533], fullVector: make384('GRD_204'), tags: ['feeder','load-shedding'] },
+        { id: 'VEC_GRD_682', title: 'SCADA Master Spoofing Signature',   category: 'failure',  similarity: 86.9, payload: 'Intruder spoofed SCADA master IP to send forced trip signals. Mitigated by TLS 1.3 mutual auth.', vector: [0.912, -0.312, -0.421, 0.119, 0.762, -0.344], fullVector: make384('GRD_682'), tags: ['intruder','tls'] }
       ];
     }
 
@@ -86,14 +101,14 @@ class MemoryGalaxyEngine {
     if (isPayment) {
       this.currentScenarioTitle = 'Payment Platform Failure';
       return [
-        { id: 'VEC_FIN_911', title: 'Payment Gateway 502 Spike 2025',     category: 'mission',  similarity: 97.1, payload: 'Primary payment provider timeout caused retry storm. Instant failover to secondary PSP processor saved $4.2M.', vector: [0.210, 0.741, -0.115, 0.882, 0.319, -0.401], tags: ['payment','gateway','psp'] },
-        { id: 'VEC_FIN_402', title: 'Idempotency Key Duplication Anomaly', category: 'failure',  similarity: 93.4, payload: 'Network retries without idempotency tokens caused duplicate debit charges on 430 accounts. Fixed via Redis distributed locks.', vector: [-0.412, 0.612, 0.320, -0.710, 0.219, 0.540], tags: ['idempotency','duplicate'] },
-        { id: 'VEC_FIN_705', title: 'PSP Auto-Switching Circuit Breaker',  category: 'decision', similarity: 95.8, payload: 'Auto-divert 80% checkout volume to Stripe/Adyen secondary endpoint when error rate exceeds 3.5%.', vector: [0.651, 0.120, -0.342, 0.910, 0.180, -0.221], tags: ['circuit-breaker','switch'] },
-        { id: 'VEC_FIN_219', title: 'Compliance Dissent: Chargeback Burst', category: 'dissent',  similarity: 91.6, payload: 'Compliance Officer Dissent: Aggressive retry loop without fraud check increases chargeback risk above Visa threshold.', vector: [0.412, -0.801, 0.311, 0.220, -0.510, 0.712], tags: ['dissent','chargeback'] },
-        { id: 'VEC_FIN_663', title: 'Distributed Ledger Settlement Re-Sync',category: 'mission',  similarity: 89.8, payload: 'Dual-write reconciliation script executed to verify zero transaction loss during 18-minute gateway blackout.', vector: [0.104, 0.521, 0.820, -0.112, 0.610, -0.320], tags: ['settlement','reconciliation'] },
-        { id: 'VEC_FIN_104', title: 'Emergency Liquidity Buffer Policy',    category: 'decision', similarity: 94.2, payload: 'Automated treasury liquidity buffer unlocked to maintain instant merchant payouts during clearing house delay.', vector: [0.771, -0.210, 0.512, 0.440, 0.821, 0.119], tags: ['treasury','liquidity'] },
-        { id: 'VEC_FIN_881', title: 'Webhooks Signature Verification Fail',category: 'failure',  similarity: 87.5, payload: 'Rotated webhook secret dropped 1,200 asynchronous payment notifications. Recovered via dead-letter queue re-drive.', vector: [-0.512, 0.334, 0.612, -0.220, 0.710, -0.112], tags: ['webhooks','signature'] },
-        { id: 'VEC_FIN_330', title: 'Multi-Region Tokenization Standard',   category: 'decision', similarity: 96.3, payload: 'Tokenized PCI data replicated asynchronously across 3 cloud regions with zero unencrypted card numbers at rest.', vector: [0.812, -0.115, 0.660, 0.320, 0.712, 0.401], tags: ['pci','tokenization'] }
+        { id: 'VEC_FIN_911', title: 'Payment Gateway 502 Spike 2025',     category: 'mission',  similarity: 97.1, payload: 'Primary payment provider timeout caused retry storm. Instant failover to secondary PSP processor saved $4.2M.', vector: [0.210, 0.741, -0.115, 0.882, 0.319, -0.401], fullVector: make384('FIN_911'), tags: ['payment','gateway','psp'] },
+        { id: 'VEC_FIN_402', title: 'Idempotency Key Duplication Anomaly', category: 'failure',  similarity: 93.4, payload: 'Network retries without idempotency tokens caused duplicate debit charges on 430 accounts. Fixed via Redis distributed locks.', vector: [-0.412, 0.612, 0.320, -0.710, 0.219, 0.540], fullVector: make384('FIN_402'), tags: ['idempotency','duplicate'] },
+        { id: 'VEC_FIN_705', title: 'PSP Auto-Switching Circuit Breaker',  category: 'decision', similarity: 95.8, payload: 'Auto-divert 80% checkout volume to Stripe/Adyen secondary endpoint when error rate exceeds 3.5%.', vector: [0.651, 0.120, -0.342, 0.910, 0.180, -0.221], fullVector: make384('FIN_705'), tags: ['circuit-breaker','switch'] },
+        { id: 'VEC_FIN_219', title: 'Compliance Dissent: Chargeback Burst', category: 'dissent',  similarity: 91.6, payload: 'Compliance Officer Dissent: Aggressive retry loop without fraud check increases chargeback risk above Visa threshold.', vector: [0.412, -0.801, 0.311, 0.220, -0.510, 0.712], fullVector: make384('FIN_219'), tags: ['dissent','chargeback'] },
+        { id: 'VEC_FIN_663', title: 'Distributed Ledger Settlement Re-Sync',category: 'mission',  similarity: 89.8, payload: 'Dual-write reconciliation script executed to verify zero transaction loss during 18-minute gateway blackout.', vector: [0.104, 0.521, 0.820, -0.112, 0.610, -0.320], fullVector: make384('FIN_663'), tags: ['settlement','reconciliation'] },
+        { id: 'VEC_FIN_104', title: 'Emergency Liquidity Buffer Policy',    category: 'decision', similarity: 94.2, payload: 'Automated treasury liquidity buffer unlocked to maintain instant merchant payouts during clearing house delay.', vector: [0.771, -0.210, 0.512, 0.440, 0.821, 0.119], fullVector: make384('FIN_104'), tags: ['treasury','liquidity'] },
+        { id: 'VEC_FIN_881', title: 'Webhooks Signature Verification Fail',category: 'failure',  similarity: 87.5, payload: 'Rotated webhook secret dropped 1,200 asynchronous payment notifications. Recovered via dead-letter queue re-drive.', vector: [-0.512, 0.334, 0.612, -0.220, 0.710, -0.112], fullVector: make384('FIN_881'), tags: ['webhooks','signature'] },
+        { id: 'VEC_FIN_330', title: 'Multi-Region Tokenization Standard',   category: 'decision', similarity: 96.3, payload: 'Tokenized PCI data replicated asynchronously across 3 cloud regions with zero unencrypted card numbers at rest.', vector: [0.812, -0.115, 0.660, 0.320, 0.712, 0.401], fullVector: make384('FIN_330'), tags: ['pci','tokenization'] }
       ];
     }
 
@@ -101,13 +116,13 @@ class MemoryGalaxyEngine {
     if (isExam) {
       this.currentScenarioTitle = 'University Exam Portal Crisis';
       return [
-        { id: 'VEC_EDU_849', title: 'University Exam DB Fail 2024',     category: 'mission',  similarity: 94.2, payload: 'Root Cause: DB connection pool exhaustion during peak registration sync. Fix: decoupled read-only replicas.', vector: [0.042, -0.193, 0.812, 0.334, -0.521, 0.221], tags: ['university','database'] },
-        { id: 'VEC_EDU_910', title: 'Exam Failover Protocol',            category: 'decision', similarity: 91.0, payload: 'Deploy read-only mirror servers + background chunked snapshot restore.', vector: [0.412, 0.304, -0.112, 0.781, 0.291, -0.411], tags: ['failover','readonly'] },
-        { id: 'VEC_EDU_332', title: 'Single Point Gateway Failure',      category: 'failure',  similarity: 88.7, payload: 'Centralized Infrastructure Gateway bottleneck caused 4-hour delay in recovery.', vector: [-0.612, 0.221, 0.401, -0.712, 0.191, 0.501], tags: ['gateway','bottleneck'] },
-        { id: 'VEC_EDU_771', title: 'Dissenting Risk Warning',           category: 'dissent',  similarity: 92.4, payload: 'Risk Agent Minority: Direct DB snapshot restore chokes network bandwidth.', vector: [0.312, -0.812, 0.291, 0.441, -0.102, 0.833], tags: ['risk','bandwidth'] },
-        { id: 'VEC_EDU_554', title: 'Exam Portal CDN Failover',          category: 'mission',  similarity: 95.1, payload: 'CDN-level caching activated for static exam assets, reducing server load by 78%.', vector: [0.102, 0.651, -0.334, 0.892, 0.210, -0.121], tags: ['cdn','caching'] },
-        { id: 'VEC_EDU_110', title: 'Agent Consensus Threshold',         category: 'decision', similarity: 96.0, payload: 'Standardized 90%+ consensus threshold for critical infrastructure changes.', vector: [0.651, -0.231, 0.771, -0.412, 0.892, 0.102], tags: ['consensus','threshold'] },
-        { id: 'VEC_EDU_439', title: 'DB Write Lock Timeout Pattern',     category: 'failure',  similarity: 87.3, payload: 'Exclusive locks during mass student login led to cascaded query timeouts.', vector: [-0.192, 0.512, 0.721, -0.341, 0.612, -0.231], tags: ['database','timeout'] }
+        { id: 'VEC_EDU_849', title: 'University Exam DB Fail 2024',     category: 'mission',  similarity: 94.2, payload: 'Root Cause: DB connection pool exhaustion during peak registration sync. Fix: decoupled read-only replicas.', vector: [0.042, -0.193, 0.812, 0.334, -0.521, 0.221], fullVector: make384('EDU_849'), tags: ['university','database'] },
+        { id: 'VEC_EDU_910', title: 'Exam Failover Protocol',            category: 'decision', similarity: 91.0, payload: 'Deploy read-only mirror servers + background chunked snapshot restore.', vector: [0.412, 0.304, -0.112, 0.781, 0.291, -0.411], fullVector: make384('EDU_910'), tags: ['failover','readonly'] },
+        { id: 'VEC_EDU_332', title: 'Single Point Gateway Failure',      category: 'failure',  similarity: 88.7, payload: 'Centralized Infrastructure Gateway bottleneck caused 4-hour delay in recovery.', vector: [-0.612, 0.221, 0.401, -0.712, 0.191, 0.501], fullVector: make384('EDU_332'), tags: ['gateway','bottleneck'] },
+        { id: 'VEC_EDU_771', title: 'Dissenting Risk Warning',           category: 'dissent',  similarity: 92.4, payload: 'Risk Agent Minority: Direct DB snapshot restore chokes network bandwidth.', vector: [0.312, -0.812, 0.291, 0.441, -0.102, 0.833], fullVector: make384('EDU_771'), tags: ['risk','bandwidth'] },
+        { id: 'VEC_EDU_554', title: 'Exam Portal CDN Failover',          category: 'mission',  similarity: 95.1, payload: 'CDN-level caching activated for static exam assets, reducing server load by 78%.', vector: [0.102, 0.651, -0.334, 0.892, 0.210, -0.121], fullVector: make384('EDU_554'), tags: ['cdn','caching'] },
+        { id: 'VEC_EDU_110', title: 'Agent Consensus Threshold',         category: 'decision', similarity: 96.0, payload: 'Standardized 90%+ consensus threshold for critical infrastructure changes.', vector: [0.651, -0.231, 0.771, -0.412, 0.892, 0.102], fullVector: make384('EDU_110'), tags: ['consensus','threshold'] },
+        { id: 'VEC_EDU_439', title: 'DB Write Lock Timeout Pattern',     category: 'failure',  similarity: 87.3, payload: 'Exclusive locks during mass student login led to cascaded query timeouts.', vector: [-0.192, 0.512, 0.721, -0.341, 0.612, -0.231], fullVector: make384('EDU_439'), tags: ['database','timeout'] }
       ];
     }
 
@@ -115,12 +130,12 @@ class MemoryGalaxyEngine {
     if (isSupply) {
       this.currentScenarioTitle = 'Supply Chain Disruption';
       return [
-        { id: 'VEC_LOG_849', title: 'West Coast Port Congestion 2025',   category: 'mission',  similarity: 96.2, payload: 'Diverted 42 container vessels to secondary rail hubs in Mexico and Canada, cutting delay by 14 days.', vector: [0.120, 0.651, -0.334, 0.892, 0.210, -0.121], tags: ['port','rail','rerouting'] },
-        { id: 'VEC_LOG_910', title: 'Multimodal Freight Protocol',        category: 'decision', similarity: 94.5, payload: 'Pre-booked air freight capacity for perishable pharmaceuticals to avoid port congestion.', vector: [0.412, 0.304, -0.112, 0.781, 0.291, -0.411], tags: ['airfreight','freight'] },
-        { id: 'VEC_LOG_332', title: 'Single Carrier Bottleneck Alert',    category: 'failure',  similarity: 90.1, payload: 'Exclusive contract with single trucking fleet left 800 pallets stranded during regional flood.', vector: [-0.612, 0.221, 0.401, -0.712, 0.191, 0.501], tags: ['carrier','bottleneck'] },
-        { id: 'VEC_LOG_771', title: 'Procurement Cost Dissent',          category: 'dissent',  similarity: 92.0, payload: 'Finance Dissent: 100% air freight switch increases logistics spend by 340%. Enforce selective tiered prioritization.', vector: [0.312, -0.812, 0.291, 0.441, -0.102, 0.833], tags: ['procurement','dissent'] },
-        { id: 'VEC_LOG_554', title: 'Warehouse Buffer Redistribution',    category: 'mission',  similarity: 91.8, payload: 'Dynamic inventory rebalancing across 5 regional distribution centers maintained 98% fulfillment.', vector: [0.092, -0.412, 0.884, 0.123, -0.054, 0.731], tags: ['inventory','warehouse'] },
-        { id: 'VEC_LOG_110', title: 'Vendor Dual-Sourcing Policy',        category: 'decision', similarity: 95.0, payload: 'Mandated maximum 60% volume cap on any single critical tier-1 component supplier.', vector: [0.771, -0.124, 0.901, -0.342, 0.512, 0.211], tags: ['sourcing','policy'] }
+        { id: 'VEC_LOG_849', title: 'West Coast Port Congestion 2025',   category: 'mission',  similarity: 96.2, payload: 'Diverted 42 container vessels to secondary rail hubs in Mexico and Canada, cutting delay by 14 days.', vector: [0.120, 0.651, -0.334, 0.892, 0.210, -0.121], fullVector: make384('LOG_849'), tags: ['port','rail','rerouting'] },
+        { id: 'VEC_LOG_910', title: 'Multimodal Freight Protocol',        category: 'decision', similarity: 94.5, payload: 'Pre-booked air freight capacity for perishable pharmaceuticals to avoid port congestion.', vector: [0.412, 0.304, -0.112, 0.781, 0.291, -0.411], fullVector: make384('LOG_910'), tags: ['airfreight','freight'] },
+        { id: 'VEC_LOG_332', title: 'Single Carrier Bottleneck Alert',    category: 'failure',  similarity: 90.1, payload: 'Exclusive contract with single trucking fleet left 800 pallets stranded during regional flood.', vector: [-0.612, 0.221, 0.401, -0.712, 0.191, 0.501], fullVector: make384('LOG_332'), tags: ['carrier','bottleneck'] },
+        { id: 'VEC_LOG_771', title: 'Procurement Cost Dissent',          category: 'dissent',  similarity: 92.0, payload: 'Finance Dissent: 100% air freight switch increases logistics spend by 340%. Enforce selective tiered prioritization.', vector: [0.312, -0.812, 0.291, 0.441, -0.102, 0.833], fullVector: make384('LOG_771'), tags: ['procurement','dissent'] },
+        { id: 'VEC_LOG_554', title: 'Warehouse Buffer Redistribution',    category: 'mission',  similarity: 91.8, payload: 'Dynamic inventory rebalancing across 5 regional distribution centers maintained 98% fulfillment.', vector: [0.092, -0.412, 0.884, 0.123, -0.054, 0.731], fullVector: make384('LOG_554'), tags: ['inventory','warehouse'] },
+        { id: 'VEC_LOG_110', title: 'Vendor Dual-Sourcing Policy',        category: 'decision', similarity: 95.0, payload: 'Mandated maximum 60% volume cap on any single critical tier-1 component supplier.', vector: [0.771, -0.124, 0.901, -0.342, 0.512, 0.211], fullVector: make384('LOG_110'), tags: ['sourcing','policy'] }
       ];
     }
 
@@ -128,12 +143,12 @@ class MemoryGalaxyEngine {
     if (isStartup) {
       this.currentScenarioTitle = 'Startup Runway Decision';
       return [
-        { id: 'VEC_STU_849', title: 'Series A Runway Crunch Mitigation', category: 'mission',  similarity: 95.4, payload: 'Cut non-core cloud spend by 48% and renegotiated annual SaaS contracts, extending runway from 4 to 11 months.', vector: [0.102, 0.651, -0.334, 0.892, 0.210, -0.121], tags: ['runway','saas','burn'] },
-        { id: 'VEC_STU_910', title: 'Strategic Pivot to Enterprise',     category: 'decision', similarity: 93.8, payload: 'Shifted sales focus from self-serve SMB to annual upfront enterprise contracts with net-30 terms.', vector: [0.412, 0.304, -0.112, 0.781, 0.291, -0.411], tags: ['enterprise','pivot'] },
-        { id: 'VEC_STU_332', title: 'Aggressive Paid Ads Burn Failure',  category: 'failure',  similarity: 89.5, payload: 'High-CAC paid ads with 70% month-1 churn drained $600k with negative unit economics.', vector: [-0.612, 0.221, 0.401, -0.712, 0.191, 0.501], tags: ['cac','marketing'] },
-        { id: 'VEC_STU_771', title: 'Board Dissent: Down-Round Dilution', category: 'dissent',  similarity: 91.2, payload: 'Lead Investor Dissent: Accepting predatory bridge note triggers 2x liquidation preference.', vector: [0.312, -0.812, 0.291, 0.441, -0.102, 0.833], tags: ['board','dilution'] },
-        { id: 'VEC_STU_554', title: 'Core IP OEM Licensing Agreement',   category: 'mission',  similarity: 92.6, payload: 'Non-exclusive OEM distribution partnership generated $1.2M upfront non-dilutive capital.', vector: [0.092, -0.412, 0.884, 0.123, -0.054, 0.731], tags: ['licensing','capital'] },
-        { id: 'VEC_STU_110', title: '18-Month Runway Buffer Policy',      category: 'decision', similarity: 94.0, payload: 'Executive policy: Trigger operational hiring freeze whenever cash runway drops below 9 months.', vector: [0.771, -0.124, 0.901, -0.342, 0.512, 0.211], tags: ['runway','policy'] }
+        { id: 'VEC_STU_849', title: 'Series A Runway Crunch Mitigation', category: 'mission',  similarity: 95.4, payload: 'Cut non-core cloud spend by 48% and renegotiated annual SaaS contracts, extending runway from 4 to 11 months.', vector: [0.102, 0.651, -0.334, 0.892, 0.210, -0.121], fullVector: make384('STU_849'), tags: ['runway','saas','burn'] },
+        { id: 'VEC_STU_910', title: 'Strategic Pivot to Enterprise',     category: 'decision', similarity: 93.8, payload: 'Shifted sales focus from self-serve SMB to annual upfront enterprise contracts with net-30 terms.', vector: [0.412, 0.304, -0.112, 0.781, 0.291, -0.411], fullVector: make384('STU_910'), tags: ['enterprise','pivot'] },
+        { id: 'VEC_STU_332', title: 'Aggressive Paid Ads Burn Failure',  category: 'failure',  similarity: 89.5, payload: 'High-CAC paid ads with 70% month-1 churn drained $600k with negative unit economics.', vector: [-0.612, 0.221, 0.401, -0.712, 0.191, 0.501], fullVector: make384('STU_332'), tags: ['cac','marketing'] },
+        { id: 'VEC_STU_771', title: 'Board Dissent: Down-Round Dilution', category: 'dissent',  similarity: 91.2, payload: 'Lead Investor Dissent: Accepting predatory bridge note triggers 2x liquidation preference.', vector: [0.312, -0.812, 0.291, 0.441, -0.102, 0.833], fullVector: make384('STU_771'), tags: ['board','dilution'] },
+        { id: 'VEC_STU_554', title: 'Core IP OEM Licensing Agreement',   category: 'mission',  similarity: 92.6, payload: 'Non-exclusive OEM distribution partnership generated $1.2M upfront non-dilutive capital.', vector: [0.092, -0.412, 0.884, 0.123, -0.054, 0.731], fullVector: make384('STU_554'), tags: ['licensing','capital'] },
+        { id: 'VEC_STU_110', title: '18-Month Runway Buffer Policy',      category: 'decision', similarity: 94.0, payload: 'Executive policy: Trigger operational hiring freeze whenever cash runway drops below 9 months.', vector: [0.771, -0.124, 0.901, -0.342, 0.512, 0.211], fullVector: make384('STU_110'), tags: ['runway','policy'] }
       ];
     }
 
@@ -141,14 +156,14 @@ class MemoryGalaxyEngine {
     if (isSoftware || !lc) {
       this.currentScenarioTitle = 'Production Deployment Incident';
       return [
-        { id: 'VEC_SRE_901', title: 'Canary Deployment Rollback 2025',    category: 'mission',  similarity: 96.8, payload: 'Canary v2.14 introduced connection pool leak in checkout service. Fast rollback in 4 mins prevented tier-1 checkout crash.', vector: [0.114, 0.891, -0.212, 0.651, 0.334, -0.402], tags: ['canary','rollback','checkout'] },
-        { id: 'VEC_DBA_402', title: 'DB Connection Pool Saturation',      category: 'failure',  similarity: 94.5, payload: 'Max connections 500 exhausted by unclosed prepared statements during flash traffic. Caused cascading 504 Gateway Timeouts.', vector: [-0.821, 0.431, 0.120, -0.902, 0.231, 0.512], tags: ['database','pool','deadlock'] },
-        { id: 'VEC_DEC_114', title: 'Graceful Pod Drain Protocol',        category: 'decision', similarity: 95.2, payload: 'Consensus protocol: Drain active ingress pods with 15s keep-alive before hard kill to avoid dropping checkout transactions.', vector: [0.312, 0.104, -0.652, 0.441, 0.891, -0.212], tags: ['kubernetes','pod-drain'] },
-        { id: 'VEC_DIS_308', title: 'SRE Dissent: Rapid Kill Risk',        category: 'dissent',  similarity: 92.4, payload: 'SRE Lead Dissent: Immediate hard kill of pods will cause 12,000 in-flight basket dropouts. Enforced phased canary drain.', vector: [0.512, -0.732, 0.392, 0.110, -0.451, 0.344], tags: ['sre','dissent','latency'] },
-        { id: 'VEC_PRX_551', title: 'Ingress Nginx Proxy Timeout Policy', category: 'decision', similarity: 91.0, payload: 'Upstream timeout adjusted from 60s to 8s with circuit breaker trip on 5xx burst > 5%.', vector: [0.771, -0.124, 0.901, -0.342, 0.512, 0.211], tags: ['nginx','circuit-breaker'] },
-        { id: 'VEC_CIR_729', title: 'PgBouncer Connection Pooling Scale',  category: 'mission',  similarity: 93.6, payload: 'Scaled connection pool size to 2,000 + configured PgBouncer transaction pooling to absorb traffic bursts.', vector: [0.092, -0.412, 0.884, 0.123, -0.054, 0.731], tags: ['pgbouncer','postgres','scale'] },
-        { id: 'VEC_LOG_833', title: 'Deadlock on Prepared Statements',    category: 'failure',  similarity: 88.9, payload: 'Un-indexed join query triggered table locks on order_items table under 15k req/sec checkout load.', vector: [0.912, -0.312, -0.421, 0.119, 0.762, -0.344], tags: ['deadlock','postgres','locks'] },
-        { id: 'VEC_REF_612', title: 'Blue/Green Standby Replicas Standard',category: 'decision', similarity: 97.4, payload: 'Standardized mandatory hot-standby replica deployment before any core microservice release.', vector: [0.341, 0.621, 0.412, 0.821, -0.192, 0.533], tags: ['bluegreen','replicas','standard'] }
+        { id: 'VEC_SRE_901', title: 'Canary Deployment Rollback 2025',    category: 'mission',  similarity: 96.8, payload: 'Canary v2.14 introduced connection pool leak in checkout service. Fast rollback in 4 mins prevented tier-1 checkout crash.', vector: [0.114, 0.891, -0.212, 0.651, 0.334, -0.402], fullVector: make384('SRE_901'), tags: ['canary','rollback','checkout'] },
+        { id: 'VEC_DBA_402', title: 'DB Connection Pool Saturation',      category: 'failure',  similarity: 94.5, payload: 'Max connections 500 exhausted by unclosed prepared statements during flash traffic. Caused cascading 504 Gateway Timeouts.', vector: [-0.821, 0.431, 0.120, -0.902, 0.231, 0.512], fullVector: make384('DBA_402'), tags: ['database','pool','deadlock'] },
+        { id: 'VEC_DEC_114', title: 'Graceful Pod Drain Protocol',        category: 'decision', similarity: 95.2, payload: 'Consensus protocol: Drain active ingress pods with 15s keep-alive before hard kill to avoid dropping checkout transactions.', vector: [0.312, 0.104, -0.652, 0.441, 0.891, -0.212], fullVector: make384('DEC_114'), tags: ['kubernetes','pod-drain'] },
+        { id: 'VEC_DIS_308', title: 'SRE Dissent: Rapid Kill Risk',        category: 'dissent',  similarity: 92.4, payload: 'SRE Lead Dissent: Immediate hard kill of pods will cause 12,000 in-flight basket dropouts. Enforced phased canary drain.', vector: [0.512, -0.732, 0.392, 0.110, -0.451, 0.344], fullVector: make384('DIS_308'), tags: ['sre','dissent','latency'] },
+        { id: 'VEC_PRX_551', title: 'Ingress Nginx Proxy Timeout Policy', category: 'decision', similarity: 91.0, payload: 'Upstream timeout adjusted from 60s to 8s with circuit breaker trip on 5xx burst > 5%.', vector: [0.771, -0.124, 0.901, -0.342, 0.512, 0.211], fullVector: make384('PRX_551'), tags: ['nginx','circuit-breaker'] },
+        { id: 'VEC_CIR_729', title: 'PgBouncer Connection Pooling Scale',  category: 'mission',  similarity: 93.6, payload: 'Scaled connection pool size to 2,000 + configured PgBouncer transaction pooling to absorb traffic bursts.', vector: [0.092, -0.412, 0.884, 0.123, -0.054, 0.731], fullVector: make384('CIR_729'), tags: ['pgbouncer','postgres','scale'] },
+        { id: 'VEC_LOG_833', title: 'Deadlock on Prepared Statements',    category: 'failure',  similarity: 88.9, payload: 'Un-indexed join query triggered table locks on order_items table under 15k req/sec checkout load.', vector: [0.912, -0.312, -0.421, 0.119, 0.762, -0.344], fullVector: make384('LOG_833'), tags: ['deadlock','postgres','locks'] },
+        { id: 'VEC_REF_612', title: 'Blue/Green Standby Replicas Standard',category: 'decision', similarity: 97.4, payload: 'Standardized mandatory hot-standby replica deployment before any core microservice release.', vector: [0.341, 0.621, 0.412, 0.821, -0.192, 0.533], fullVector: make384('REF_612'), tags: ['bluegreen','replicas','standard'] }
       ];
     }
 
@@ -156,12 +171,12 @@ class MemoryGalaxyEngine {
     const topic = promptText.length > 25 ? promptText.slice(0, 25) + '…' : promptText;
     this.currentScenarioTitle = topic;
     return [
-      { id: `VEC_${Math.floor(Math.random()*8000+1000)}`, title: `Incident Resolution: ${topic}`, category: 'mission', similarity: 96.5, payload: `Historical incident resolution vectors retrieved from Qdrant matching '${topic}'. Autonomous swarm mitigation succeeded in 6 minutes.`, vector: [0.112, 0.781, -0.219, 0.651, 0.334, -0.402], tags: ['incident', 'custom', 'mission'] },
-      { id: `VEC_${Math.floor(Math.random()*8000+1000)}`, title: `Failover Protocol for ${topic}`, category: 'decision', similarity: 94.8, payload: `Validated emergency failover protocol for ${topic}. Redundant standby systems activated with zero data corruption.`, vector: [0.312, 0.104, -0.652, 0.441, 0.891, -0.212], tags: ['failover', 'consensus', 'decision'] },
-      { id: `VEC_${Math.floor(Math.random()*8000+1000)}`, title: `Single Point Failure in ${topic}`, category: 'failure', similarity: 89.4, payload: `Prior failure pattern in ${topic}: Unmonitored dependency triggered cascading service degradation.`, vector: [-0.821, 0.431, 0.120, -0.902, 0.231, 0.512], tags: ['failure', 'bottleneck', 'root-cause'] },
-      { id: `VEC_${Math.floor(Math.random()*8000+1000)}`, title: `Adversarial Risk Warning on ${topic}`, category: 'dissent', similarity: 92.6, payload: `Specialist Dissent: Immediate hard cutover for ${topic} poses unmitigated edge-case exposure. Gradual phased migration enforced.`, vector: [0.512, -0.732, 0.392, 0.110, -0.451, 0.344], tags: ['dissent', 'risk', 'warning'] },
-      { id: `VEC_${Math.floor(Math.random()*8000+1000)}`, title: `Telemetry Anomaly Thresholds: ${topic}`, category: 'decision', similarity: 95.1, payload: `Automated alert sensitivity set to 3-sigma anomaly boundary for ${topic} operational metrics.`, vector: [0.771, -0.124, 0.901, -0.342, 0.512, 0.211], tags: ['telemetry', 'threshold', 'standard'] },
-      { id: `VEC_${Math.floor(Math.random()*8000+1000)}`, title: `Post-Mortem Playbook: ${topic}`, category: 'mission', similarity: 91.2, payload: `Cryptographically verified post-mortem playbook indexed in Qdrant reflection memory.`, vector: [0.092, -0.412, 0.884, 0.123, -0.054, 0.731], tags: ['playbook', 'reflection', 'qdrant'] }
+      { id: `VEC_${Math.floor(Math.random()*8000+1000)}`, title: `Incident Resolution: ${topic}`, category: 'mission', similarity: 96.5, payload: `Historical incident resolution vectors retrieved from Qdrant matching '${topic}'. Autonomous swarm mitigation succeeded in 6 minutes.`, vector: [0.112, 0.781, -0.219, 0.651, 0.334, -0.402], fullVector: make384(topic + '_1'), tags: ['incident', 'custom', 'mission'] },
+      { id: `VEC_${Math.floor(Math.random()*8000+1000)}`, title: `Failover Protocol for ${topic}`, category: 'decision', similarity: 94.8, payload: `Validated emergency failover protocol for ${topic}. Redundant standby systems activated with zero data corruption.`, vector: [0.312, 0.104, -0.652, 0.441, 0.891, -0.212], fullVector: make384(topic + '_2'), tags: ['failover', 'consensus', 'decision'] },
+      { id: `VEC_${Math.floor(Math.random()*8000+1000)}`, title: `Single Point Failure in ${topic}`, category: 'failure', similarity: 89.4, payload: `Prior failure pattern in ${topic}: Unmonitored dependency triggered cascading service degradation.`, vector: [-0.821, 0.431, 0.120, -0.902, 0.231, 0.512], fullVector: make384(topic + '_3'), tags: ['failure', 'bottleneck', 'root-cause'] },
+      { id: `VEC_${Math.floor(Math.random()*8000+1000)}`, title: `Adversarial Risk Warning on ${topic}`, category: 'dissent', similarity: 92.6, payload: `Specialist Dissent: Immediate hard cutover for ${topic} poses unmitigated edge-case exposure. Gradual phased migration enforced.`, vector: [0.512, -0.732, 0.392, 0.110, -0.451, 0.344], fullVector: make384(topic + '_4'), tags: ['dissent', 'risk', 'warning'] },
+      { id: `VEC_${Math.floor(Math.random()*8000+1000)}`, title: `Telemetry Anomaly Thresholds: ${topic}`, category: 'decision', similarity: 95.1, payload: `Automated alert sensitivity set to 3-sigma anomaly boundary for ${topic} operational metrics.`, vector: [0.771, -0.124, 0.901, -0.342, 0.512, 0.211], fullVector: make384(topic + '_5'), tags: ['telemetry', 'threshold', 'standard'] },
+      { id: `VEC_${Math.floor(Math.random()*8000+1000)}`, title: `Post-Mortem Playbook: ${topic}`, category: 'mission', similarity: 91.2, payload: `Cryptographically verified post-mortem playbook indexed in Qdrant reflection memory.`, vector: [0.092, -0.412, 0.884, 0.123, -0.054, 0.731], fullVector: make384(topic + '_6'), tags: ['playbook', 'reflection', 'qdrant'] }
     ];
   }
 
@@ -193,18 +208,25 @@ class MemoryGalaxyEngine {
 
   initNodes() {
     this.nodes = [];
-    const cx = (this.width || 700) / 2;
-    const cy = (this.height || 450) / 2;
+    const w = this.width > 300 ? this.width : (this.canvas?.offsetWidth || 1100);
+    const h = this.height > 200 ? this.height : (this.canvas?.offsetHeight || 450);
+    const cx = w / 2;
+    const cy = h / 2;
 
     this.memories.forEach((mem, idx) => {
       const angle = (idx / this.memories.length) * Math.PI * 2 - Math.PI / 2;
-      const r = 115 + (idx % 3) * 48;
+      const rx = 240 + (idx % 3) * 55;
+      const ry = 135 + (idx % 3) * 30;
       this.nodes.push({
         ...mem,
-        x: cx + Math.cos(angle) * r,
-        y: cy + Math.sin(angle) * r * 0.72,
-        vx: (Math.random() - 0.5) * 0.25,
-        vy: (Math.random() - 0.5) * 0.25,
+        orbitAngle: angle,
+        rx: rx,
+        ry: ry,
+        orbitSpeed: (0.0016 + (idx % 3) * 0.0004) * (idx % 2 === 0 ? 1 : -1),
+        x: cx + Math.cos(angle) * rx,
+        y: cy + Math.sin(angle) * ry,
+        vx: 0,
+        vy: 0,
         baseR: 11
       });
     });
@@ -245,7 +267,46 @@ class MemoryGalaxyEngine {
         document.querySelectorAll('.cat-pill').forEach(p => p.classList.remove('active'));
         e.target.classList.add('active');
         this.activeCategory = e.target.getAttribute('data-cat');
+        // sync qdrant collection buttons
+        document.querySelectorAll('.qdrant-col-btn').forEach(b => {
+          b.classList.toggle('active', b.getAttribute('data-col') === this.activeCategory);
+        });
         this.updateStats();
+        if (window.nexusAudio) window.nexusAudio.playClick();
+      });
+    });
+
+    // 9 Qdrant collection buttons
+    document.querySelectorAll('.qdrant-col-btn').forEach(btn => {
+      btn.addEventListener('click', e => {
+        document.querySelectorAll('.qdrant-col-btn').forEach(b => b.classList.remove('active'));
+        e.target.classList.add('active');
+        const col = e.target.getAttribute('data-col');
+        this.activeCategory = col;
+        document.querySelectorAll('.cat-pill').forEach(p => {
+          p.classList.toggle('active', p.getAttribute('data-cat') === col);
+        });
+        this.updateStats();
+        if (window.nexusAudio) window.nexusAudio.playClick();
+      });
+    });
+
+    // Quick query suggestions
+    document.querySelectorAll('.mem-quick-query-chip').forEach(chip => {
+      chip.addEventListener('click', e => {
+        const q = e.target.getAttribute('data-query');
+        const searchInput = document.getElementById('qdrant-memory-search');
+        if (searchInput) searchInput.value = q;
+        this.searchQuery = q.toLowerCase();
+        this.updateStats();
+
+        // Select best matching node
+        const match = this.nodes.find(n => this.isVisible(n));
+        if (match) {
+          this.selectNode(match);
+          this.addRipple(match.x * this.zoom + this.panX, match.y * this.zoom + this.panY, this.nodeColor(match));
+        }
+        if (window.nexusAudio) window.nexusAudio.playChime(880, 'sine', 0.2);
       });
     });
 
@@ -284,7 +345,12 @@ class MemoryGalaxyEngine {
 
     if (zi) zi.addEventListener('click', () => this.zoom = Math.min(this.zoom + 0.15, 2.5));
     if (zo) zo.addEventListener('click', () => this.zoom = Math.max(this.zoom - 0.15, 0.4));
-    if (rs) rs.addEventListener('click', () => { this.zoom = 1; this.panX = 0; this.panY = 0; });
+    if (rs) rs.addEventListener('click', () => { 
+      this.zoom = 1; 
+      this.panX = 0; 
+      this.panY = 0; 
+      this.initNodes();
+    });
     if (fr) fr.addEventListener('click', () => {
       this.frozen = !this.frozen;
       fr.style.color = this.frozen ? '#10b981' : 'var(--color-warning)';
@@ -392,31 +458,35 @@ class MemoryGalaxyEngine {
     return true;
   }
 
-  /* ── Stats ────────────────────────────────────────────────────────── */
-  updateStats() {
-    const visible = this.nodes.filter(n => this.isVisible(n));
-    const total = document.getElementById('mem-stat-total');
-    const avg   = document.getElementById('mem-stat-avg');
-    if (total) total.innerText = visible.length;
-    if (avg && visible.length) {
-      const mean = visible.reduce((s, n) => s + n.similarity, 0) / visible.length;
-      avg.innerText = mean.toFixed(1) + '%';
-    }
-  }
-
-  /* ── Select node → detail panel ──────────────────────────────────── */
+  /* ── Select node → detail panel with 384-Dim Heatmap & Copy ─────── */
   selectNode(node) {
     this.selectedMemory = node;
 
+    // Ensure 384-dim vector exists
+    if (!node.fullVector || node.fullVector.length < 384) {
+      let seed = 0;
+      for (let i = 0; i < (node.id || 'vec').length; i++) seed += (node.id || 'vec').charCodeAt(i);
+      node.fullVector = Array.from({ length: 384 }, (_, i) => +(Math.sin(seed * (i + 1)) * Math.cos(i * 0.28) * 0.94).toFixed(4));
+    }
+
     const panel = document.getElementById('memory-detail-content');
     if (panel) {
-      const vecStr = node.vector.map(v => v.toFixed(3)).join(', ');
       const tagsHtml = (node.tags || []).map(t =>
         `<span style="display:inline-block;margin:2px;background:rgba(139,92,246,0.15);color:#a78bfa;padding:2px 8px;border-radius:10px;border:1px solid rgba(139,92,246,0.3);font-size:0.65rem;font-family:monospace;">#${t}</span>`
       ).join('');
 
       const catColor = { mission: '#8b5cf6', decision: '#10b981', failure: '#ef4444', dissent: '#ec4899' };
       const cc = catColor[node.category] || '#6b7280';
+
+      // Build 32x4 = 128 cell preview heatmap
+      const previewDims = node.fullVector.slice(0, 128);
+      const heatmapCells = previewDims.map((val, idx) => {
+        const norm = (val + 1) / 2; // 0 to 1
+        const r = Math.round(139 * norm + 16 * (1 - norm));
+        const g = Math.round(92 * norm + 185 * (1 - norm));
+        const b = Math.round(246 * norm + 129 * (1 - norm));
+        return `<div class="vec-dim-cell" title="Dim ${idx}: ${val}" style="background:rgb(${r},${g},${b}); opacity:${0.4 + Math.abs(val)*0.6};"></div>`;
+      }).join('');
 
       panel.innerHTML = `
         <div style="margin-bottom:10px;">
@@ -427,25 +497,46 @@ class MemoryGalaxyEngine {
           <div style="font-family:monospace;font-size:0.65rem;color:#a78bfa;">${node.id} · qdrant://${node.category}_memory</div>
         </div>
 
-        <div style="background:rgba(0,0,0,0.45);border:1px solid rgba(139,92,246,0.25);border-radius:8px;padding:10px;margin-bottom:10px;">
-          <div style="font-size:0.6rem;font-family:monospace;color:#6b7280;margin-bottom:5px;">384-DIM VECTOR EMBEDDING PREVIEW</div>
-          <code style="font-size:0.68rem;color:#a78bfa;word-break:break-all;line-height:1.6;">[${vecStr}, …+378 dims]</code>
+        <!-- Cosine Metric Formula Card -->
+        <div style="background:rgba(139,92,246,0.08); border:1px solid rgba(139,92,246,0.25); border-radius:6px; padding:6px 10px; margin-bottom:8px; font-family:monospace; font-size:0.65rem; color:#c4b5fd;">
+          <div style="display:flex; justify-content:space-between; margin-bottom:2px;">
+            <span style="color:#9ca3af;">DISTANCE METRIC:</span>
+            <strong style="color:#10b981;">COSINE (HNSW)</strong>
+          </div>
+          <div style="color:#a78bfa; font-size:0.62rem;">cos(θ) = (u · v) / (||u|| ||v||) = ${(node.similarity/100).toFixed(3)}</div>
         </div>
 
-        <div style="font-size:0.78rem;color:#d1d5db;line-height:1.5;margin-bottom:10px;padding:8px;background:rgba(255,255,255,0.03);border-radius:6px;border-left:3px solid ${cc};">
+        <!-- 384-Dim Vector Heatmap -->
+        <div style="background:rgba(0,0,0,0.5); border:1px solid rgba(139,92,246,0.25); border-radius:8px; padding:8px 10px; margin-bottom:10px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+            <span style="font-size:0.6rem; font-family:monospace; color:#6b7280;">384-DIM DENSE EMBEDDING (FASTEMBED)</span>
+            <span style="font-size:0.58rem; font-family:monospace; color:#10b981;">BAAI/bge-small</span>
+          </div>
+          
+          <div class="vec-heatmap-grid">
+            ${heatmapCells}
+          </div>
+          
+          <button id="mem-copy-vec-btn" style="width:100%; background:rgba(139,92,246,0.12); border:1px solid rgba(139,92,246,0.3); color:#a78bfa; padding:5px 8px; border-radius:6px; font-size:0.62rem; font-family:monospace; cursor:pointer; font-weight:700; transition:all 0.2s ease;">
+            <i class="fa-solid fa-copy"></i> COPY 384-DIM FLOAT32 ARRAY
+          </button>
+        </div>
+
+        <!-- Payload Description -->
+        <div style="font-size:0.75rem; color:#d1d5db; line-height:1.45; margin-bottom:10px; padding:8px; background:rgba(255,255,255,0.03); border-radius:6px; border-left:3px solid ${cc};">
           ${node.payload}
         </div>
 
-        <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:12px;">${tagsHtml}</div>
+        <div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:10px;">${tagsHtml}</div>
 
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;">
-          <div style="background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.25);border-radius:6px;padding:6px 10px;">
-            <div style="font-family:monospace;font-size:0.65rem;color:#6b7280;">CATEGORY</div>
-            <div style="font-size:0.78rem;font-weight:700;color:#10b981;">${node.category.toUpperCase()}</div>
+          <div style="background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.25);border-radius:6px;padding:5px 8px;">
+            <div style="font-family:monospace;font-size:0.6rem;color:#6b7280;">COLLECTION</div>
+            <div style="font-size:0.72rem;font-weight:700;color:#10b981;">${node.category.toUpperCase()}</div>
           </div>
-          <div style="background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.25);border-radius:6px;padding:6px 10px;">
-            <div style="font-family:monospace;font-size:0.65rem;color:#6b7280;">COSINE SIM</div>
-            <div style="font-size:0.78rem;font-weight:700;color:#3b82f6;">${node.similarity}%</div>
+          <div style="background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.25);border-radius:6px;padding:5px 8px;">
+            <div style="font-family:monospace;font-size:0.6rem;color:#6b7280;">COSINE SIM</div>
+            <div style="font-size:0.72rem;font-weight:700;color:#3b82f6;">${node.similarity}%</div>
           </div>
         </div>
 
@@ -547,18 +638,31 @@ class MemoryGalaxyEngine {
   resize() {
     if (!this.canvas) return;
     const rect = this.canvas.getBoundingClientRect();
-    this.width  = rect.width > 0 ? rect.width : (this.canvas.offsetWidth || 700);
+    const oldW = this.width;
+    const oldH = this.height;
+
+    this.width  = rect.width > 0 ? rect.width : (this.canvas.offsetWidth || 1100);
     this.height = rect.height > 0 ? rect.height : (this.canvas.offsetHeight || 450);
     const dpr = window.devicePixelRatio || 1;
     this.canvas.width  = Math.round(this.width * dpr);
     this.canvas.height = Math.round(this.height * dpr);
     this.dpr = dpr;
+
+    // If initialized while hidden or width changed significantly, re-center nodes cleanly
+    if (!oldW || oldW <= 700 || Math.abs(this.width - oldW) > 80) {
+      this.initNodes();
+    }
   }
 
   /* ── Main Animation Loop ──────────────────────────────────────────── */
   animate() {
     requestAnimationFrame(() => this.animate());
     if (!this.canvas || !this.ctx || document.hidden) return;
+
+    // Auto-detect container size change on tab switch
+    if (this.canvas.clientWidth > 0 && Math.abs(this.canvas.clientWidth - this.width) > 6) {
+      this.resize();
+    }
     
     const dpr = this.dpr || 1;
     const ctx = this.ctx;
@@ -585,6 +689,16 @@ class MemoryGalaxyEngine {
       ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(this.width, y); ctx.stroke();
     }
 
+    /* ---- Ambient 3D Starfield particles ---- */
+    for (const star of this.stars) {
+      star.a += star.speed;
+      const alpha = Math.sin(star.a) * 0.35 + 0.45;
+      ctx.fillStyle = `rgba(196,181,253,${alpha})`;
+      ctx.beginPath();
+      ctx.arc(star.x % this.width, star.y % this.height, star.s, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
     /* ---- Ripple effects ---- */
     this.ripples = this.ripples.filter(rp => rp.alpha > 0.02);
     for (const rp of this.ripples) {
@@ -605,6 +719,30 @@ class MemoryGalaxyEngine {
 
     const visNodes = this.nodes.filter(n => this.isVisible(n));
 
+    /* ---- Vector Radar Sonar Sweep ---- */
+    this.radarAngle = (this.radarAngle + 0.014) % (Math.PI * 2);
+    const sweepRadius = 260;
+    const sweepGrad = ctx.createRadialGradient(cx, cy, 10, cx, cy, sweepRadius);
+    sweepGrad.addColorStop(0, 'rgba(139,92,246,0.14)');
+    sweepGrad.addColorStop(1, 'rgba(139,92,246,0.0)');
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, sweepRadius, this.radarAngle - 0.42, this.radarAngle);
+    ctx.closePath();
+    ctx.fillStyle = sweepGrad;
+    ctx.fill();
+
+    // Radar beam line
+    ctx.strokeStyle = 'rgba(167,139,250,0.55)';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + Math.cos(this.radarAngle) * sweepRadius, cy + Math.sin(this.radarAngle) * sweepRadius);
+    ctx.stroke();
+    ctx.restore();
+
     /* ---- Inter-node cosine similarity mesh ---- */
     for (let i = 0; i < visNodes.length; i++) {
       for (let j = i + 1; j < visNodes.length; j++) {
@@ -622,6 +760,63 @@ class MemoryGalaxyEngine {
           ctx.setLineDash([]);
         }
       }
+    }
+
+    /* ---- Nearest Neighbor Laser Links for Selected Node ---- */
+    if (this.selectedMemory) {
+      const sel = this.selectedMemory;
+      const neighbors = visNodes
+        .filter(n => n !== sel)
+        .sort((a, b) => (b.similarity || 0) - (a.similarity || 0))
+        .slice(0, 3);
+
+      neighbors.forEach((nbr, idx) => {
+        // Glowing laser beam
+        ctx.save();
+        ctx.strokeStyle = 'rgba(167,139,250,0.75)';
+        ctx.shadowColor = '#8b5cf6';
+        ctx.shadowBlur = 8;
+        ctx.lineWidth = 2.0;
+        ctx.beginPath();
+        ctx.moveTo(sel.x, sel.y);
+        ctx.lineTo(nbr.x, nbr.y);
+        ctx.stroke();
+        ctx.restore();
+
+        // Traveling photon packet
+        const t = ((this.frame * 0.02 + idx * 0.33) % 1);
+        const px = sel.x + (nbr.x - sel.x) * t;
+        const py = sel.y + (nbr.y - sel.y) * t;
+        ctx.fillStyle = '#ffffff';
+        ctx.shadowColor = '#38bdf8';
+        ctx.shadowBlur = 6;
+        ctx.beginPath();
+        ctx.arc(px, py, 3.2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        // Cosine distance midpoint badge
+        const mx = (sel.x + nbr.x) / 2;
+        const my = (sel.y + nbr.y) / 2;
+        const cosDist = (nbr.similarity / 100).toFixed(3);
+        ctx.fillStyle = 'rgba(15,23,42,0.88)';
+        ctx.strokeStyle = 'rgba(139,92,246,0.6)';
+        ctx.lineWidth = 1;
+        const bw = 54, bh = 14;
+        ctx.beginPath();
+        if (ctx.roundRect) {
+          ctx.roundRect(mx - bw / 2, my - bh / 2, bw, bh, 3);
+        } else {
+          ctx.rect(mx - bw / 2, my - bh / 2, bw, bh);
+        }
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = '#c4b5fd';
+        ctx.font = '600 7.5px "JetBrains Mono", monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(`cos: ${cosDist}`, mx, my + 3);
+      });
     }
 
     /* ---- Qdrant Core Pulsar ---- */
@@ -650,6 +845,21 @@ class MemoryGalaxyEngine {
     ctx.arc(cx, cy, 44 + corePulse, 0, Math.PI * 2);
     ctx.stroke();
 
+    // Rotating Reticle Ticks around Core
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(this.frame * 0.006);
+    ctx.strokeStyle = 'rgba(167,139,250,0.45)';
+    ctx.lineWidth = 1.2;
+    for (let t = 0; t < 12; t++) {
+      const a = (t / 12) * Math.PI * 2;
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(a) * 58, Math.sin(a) * 58);
+      ctx.lineTo(Math.cos(a) * 65, Math.sin(a) * 65);
+      ctx.stroke();
+    }
+    ctx.restore();
+
     // Core text
     ctx.fillStyle = '#ffffff';
     ctx.font = '700 10px "JetBrains Mono", monospace';
@@ -671,24 +881,47 @@ class MemoryGalaxyEngine {
     /* ---- Nodes ---- */
     for (const n of visNodes) {
       if (!this.frozen && n !== this.draggedNode) {
-        n.x += n.vx;
-        n.y += n.vy;
-        // Gentle center attraction
-        const dx = cx - n.x, dy = cy - n.y;
-        const dist = Math.hypot(dx, dy);
-        if (dist > 80) {
-          n.vx += dx / dist * 0.015;
-          n.vy += dy / dist * 0.015;
+        // Orbital motion around galaxy center
+        n.orbitAngle = (n.orbitAngle !== undefined ? n.orbitAngle : 0) + (n.orbitSpeed || 0.001);
+        const targetX = cx + Math.cos(n.orbitAngle) * (n.rx || 260);
+        const targetY = cy + Math.sin(n.orbitAngle) * (n.ry || 140);
+
+        // Smooth spring towards orbital track
+        n.x += (targetX - n.x) * 0.04 + n.vx;
+        n.y += (targetY - n.y) * 0.04 + n.vy;
+
+        // Core clearance safety (keep well outside pulsar glow)
+        const cdx = cx - n.x, cdy = cy - n.y;
+        const cdist = Math.hypot(cdx, cdy);
+        if (cdist < 140 && cdist > 0) {
+          const push = ((140 - cdist) / 140) * 0.4;
+          n.vx -= (cdx / cdist) * push;
+          n.vy -= (cdy / cdist) * push;
         }
-        // Dampen
-        n.vx *= 0.992;
-        n.vy *= 0.992;
-        // Bounds
-        const m = 40;
-        if (n.x < m) n.vx += 0.3;
-        if (n.x > this.width - m) n.vx -= 0.3;
-        if (n.y < m) n.vy += 0.3;
-        if (n.y > this.height - m) n.vy -= 0.3;
+
+        // Inter-node repulsion to prevent overlap
+        for (const other of visNodes) {
+          if (other === n) continue;
+          const odx = n.x - other.x;
+          const ody = (n.y - other.y) * 1.35;
+          const odist = Math.hypot(odx, ody);
+          if (odist < 130 && odist > 0) {
+            const rep = ((130 - odist) / 130) * 0.25;
+            n.vx += (odx / odist) * rep;
+            n.vy += ((n.y - other.y) / odist) * rep;
+          }
+        }
+
+        // Velocity damping
+        n.vx *= 0.88;
+        n.vy *= 0.88;
+
+        // Viewport bounds
+        const m = 50;
+        if (n.x < m) n.vx += 0.35;
+        if (n.x > this.width - m) n.vx -= 0.35;
+        if (n.y < m) n.vy += 0.35;
+        if (n.y > this.height - m) n.vy -= 0.35;
       }
 
       const isSelected = n === this.selectedMemory;
@@ -739,16 +972,36 @@ class MemoryGalaxyEngine {
       ctx.arc(n.x, n.y, 2.5, 0, Math.PI * 2);
       ctx.fill();
 
-      // Title label
-      ctx.fillStyle = isSelected ? '#ffffff' : '#e5e7eb';
+      // Node label with dark backdrop pill for readability
+      const labelText = n.title.length > 22 ? n.title.slice(0, 22) + '…' : n.title;
       ctx.font = isSelected ? '700 10.5px "Outfit", sans-serif' : '500 9.5px "Inter", sans-serif';
+      const textWidth = ctx.measureText(labelText).width;
+      const pillW = Math.max(textWidth + 14, 60);
+      const pillH = 26;
+      const pillX = n.x - pillW / 2;
+      const pillY = n.y + r + 3;
+
+      ctx.fillStyle = 'rgba(7, 8, 12, 0.78)';
+      ctx.strokeStyle = isSelected ? `${color}88` : 'rgba(255,255,255,0.08)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      if (ctx.roundRect) {
+        ctx.roundRect(pillX, pillY, pillW, pillH, 4);
+      } else {
+        ctx.rect(pillX, pillY, pillW, pillH);
+      }
+      ctx.fill();
+      ctx.stroke();
+
+      // Title label
+      ctx.fillStyle = isSelected ? '#ffffff' : '#e2e8f0';
       ctx.textAlign = 'center';
-      ctx.fillText(n.title.length > 22 ? n.title.slice(0, 22) + '…' : n.title, n.x, n.y + r + 13);
+      ctx.fillText(labelText, n.x, pillY + 11);
 
       // Similarity badge below label
       ctx.fillStyle = color;
       ctx.font = `600 8px "JetBrains Mono", monospace`;
-      ctx.fillText(`${n.similarity}% SIM`, n.x, n.y + r + 24);
+      ctx.fillText(`${n.similarity}% SIM`, n.x, pillY + 21);
     }
 
     ctx.restore();

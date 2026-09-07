@@ -52,6 +52,10 @@ class NexusAudioSynth {
     }
   }
 
+  playClick() {
+    this.playChime(800, 'triangle', 0.04);
+  }
+
   playVoiceActivation() {
     this.playChime(440, 'sine', 0.2);
     setTimeout(() => this.playChime(880, 'sine', 0.3), 100);

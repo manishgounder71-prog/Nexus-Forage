@@ -839,7 +839,7 @@
           </div>
 
           <!-- Filter + Search Row -->
-          <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+          <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:8px;">
             <span class="cat-pill active" data-cat="all">ALL</span>
             <span class="cat-pill" data-cat="mission" style="--pill-color:#8b5cf6;">MISSION</span>
             <span class="cat-pill" data-cat="decision" style="--pill-color:#10b981;">DECISION</span>
@@ -853,6 +853,33 @@
             <button id="mem-add-node-btn" style="background:rgba(139,92,246,0.15); border:1px solid rgba(139,92,246,0.4); color:var(--primary-bright); font-size:0.72rem; font-family:var(--font-mono); padding:6px 12px; border-radius:20px; cursor:pointer; font-weight:700;">
               <i class="fa-solid fa-plus"></i> ADD VECTOR
             </button>
+          </div>
+
+          <!-- Qdrant 9-Collections Ribbon + Quick Query Chips -->
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; padding-top:6px; border-top:1px solid rgba(255,255,255,0.06);">
+            <div class="qdrant-collections-ribbon" style="display:flex; align-items:center; gap:5px; overflow-x:auto; scrollbar-width:none;">
+              <span style="font-family:var(--font-mono); font-size:0.62rem; color:var(--text-subtle); white-space:nowrap; display:flex; align-items:center; gap:4px; margin-right:4px;">
+                <i class="fa-solid fa-layer-group" style="color:#10b981;"></i> 9 COLLECTIONS:
+              </span>
+              <button class="qdrant-col-btn active" data-col="all">ALL (384-DIM)</button>
+              <button class="qdrant-col-btn" data-col="mission">mission_memory</button>
+              <button class="qdrant-col-btn" data-col="decision">decision_memory</button>
+              <button class="qdrant-col-btn" data-col="failure">failure_memory</button>
+              <button class="qdrant-col-btn" data-col="dissent">dissent_memory</button>
+              <button class="qdrant-col-btn" data-col="reflection">reflection_memory</button>
+              <button class="qdrant-col-btn" data-col="domain">domain_memory</button>
+              <button class="qdrant-col-btn" data-col="agent">agent_memory</button>
+              <button class="qdrant-col-btn" data-col="workflow">workflow_memory</button>
+            </div>
+
+            <!-- Quick Query Suggestions -->
+            <div id="mem-quick-queries" style="display:flex; align-items:center; gap:5px;">
+              <span style="font-family:var(--font-mono); font-size:0.6rem; color:var(--text-subtle);">QUICK QUERY:</span>
+              <button class="mem-quick-query-chip" data-query="rollback">Canary Rollback</button>
+              <button class="mem-quick-query-chip" data-query="connection pool">Connection Pool</button>
+              <button class="mem-quick-query-chip" data-query="pod drain">Pod Drain</button>
+              <button class="mem-quick-query-chip" data-query="deadlock">Deadlock</button>
+            </div>
           </div>
         </div>
 

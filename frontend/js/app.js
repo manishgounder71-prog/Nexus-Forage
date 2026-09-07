@@ -9,6 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const coreEngine = new NexusCoreEngine('nexus-core-canvas');
   const dagEngine = new DagVisualizerEngine('dag-canvas');
   const memoryEngine = new MemoryGalaxyEngine('memory-galaxy-canvas');
+  window.memoryEngine = memoryEngine;
   const simEngine = new SimulationEngine('simulation-cards');
 
   // Force initial resize
@@ -125,6 +126,19 @@ document.addEventListener('DOMContentLoaded', () => {
       if (window.connectorCenter) window.connectorCenter.disconnect();
     }
   }
+
+  // Support URL hash routing (e.g. #memory-intelligence, #live-mission)
+  const initialHash = window.location.hash.replace('#', '');
+  if (initialHash && document.querySelector(`.nav-item[data-view="${initialHash}"]`)) {
+    switchView(initialHash);
+  }
+
+  window.addEventListener('hashchange', () => {
+    const newHash = window.location.hash.replace('#', '');
+    if (newHash && document.querySelector(`.nav-item[data-view="${newHash}"]`)) {
+      switchView(newHash);
+    }
+  });
 
   // ---- Live Breach Timer for Mission Topbar ----
   let breachStartTime = null;
