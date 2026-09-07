@@ -7,7 +7,8 @@ command input (Omi), reasons and delegates across a swarm of specialized AI agen
 Built for the **Lyzr × Qdrant × Omi "The Dawn of the Autonomous AI Builder"** hackathon.
 It integrates all three mandatory sponsor technologies end-to-end:
 
-> 🌐 **Live Production Backend**: [https://nexus-forage.onrender.com](https://nexus-forage.onrender.com)  
+> 🚀 **Live Web Application (Vercel)**: [https://nexus-forage.vercel.app](https://nexus-forage.vercel.app)  
+> 🌐 **Live Production Backend (Render)**: [https://nexus-forage.onrender.com](https://nexus-forage.onrender.com)  
 > 📖 **Live Interactive API Docs (Swagger UI)**: [https://nexus-forage.onrender.com/docs](https://nexus-forage.onrender.com/docs)  
 > 🩺 **Live Health Probe**: [https://nexus-forage.onrender.com/health](https://nexus-forage.onrender.com/health)
 
