@@ -7,7 +7,7 @@ from app.core.config import settings
 
 try:
     from qdrant_client import QdrantClient
-    from qdrant_client.models import VectorParams, Distance, PointStruct
+    from qdrant_client.models import VectorParams, Distance, PointStruct, Filter, FieldCondition, MatchValue
     HAS_QDRANT_CLIENT = True
 except ImportError:
     HAS_QDRANT_CLIENT = False
@@ -201,9 +201,9 @@ class QdrantMemoryStore:
                 )
             except Exception as e:
                 print(f"[QdrantMemoryStore] Upsert error into {collection_name}: {e}")
-                self.in_memory_store[collection_name].append(payload)
-        else:
-            self.in_memory_store[collection_name].append(payload)
+        
+        # Always maintain in-memory store synchronized for fast local lookup and resilient fallback
+        self.in_memory_store[collection_name].append(payload)
 
         return payload
 
@@ -258,10 +258,16 @@ class QdrantMemoryStore:
 
         if self.client and collection_name != "all":
             try:
+                query_filter = None
+                if organization_id:
+                    query_filter = Filter(
+                        must=[FieldCondition(key="organization_id", match=MatchValue(value=organization_id))]
+                    )
                 points = self.client.query_points(
                     collection_name=collection_name,
                     query=vector,
-                    limit=limit * 2 if organization_id else limit
+                    query_filter=query_filter,
+                    limit=limit
                 )
                 output = []
                 for record in getattr(points, "points", points):

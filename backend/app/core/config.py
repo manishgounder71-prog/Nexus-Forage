@@ -1,5 +1,7 @@
 import os
-from typing import List
+import json
+from typing import List, Union
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
@@ -9,7 +11,29 @@ class Settings(BaseSettings):
     DEBUG: bool = True
     ENV: str = "development"
     DEMO_MODE: bool = True
-    CORS_ORIGINS: List[str] = ["*"]
+    CORS_ORIGINS: Union[str, List[str]] = ["*"]
+
+    @field_validator("CORS_ORIGINS", mode="before")
+    @classmethod
+    def assemble_cors_origins(cls, v: Union[str, List[str], None]) -> List[str]:
+        if v is None:
+            return ["*"]
+        if isinstance(v, str):
+            v = v.strip()
+            if not v or v == "*":
+                return ["*"]
+            if v.startswith("[") and v.endswith("]"):
+                try:
+                    parsed = json.loads(v)
+                    if isinstance(parsed, list):
+                        return [str(item).strip() for item in parsed if str(item).strip()]
+                except Exception:
+                    clean = v[1:-1].replace("'", "").replace('"', "")
+                    return [item.strip() for item in clean.split(",") if item.strip()]
+            return [item.strip() for item in v.split(",") if item.strip()]
+        elif isinstance(v, list):
+            return [str(item).strip() for item in v if str(item).strip()]
+        return ["*"]
 
     # Omi Voice Engine Config (set via .env or environment variables)
     OMI_API_KEY: str = os.getenv("OMI_API_KEY", "")
