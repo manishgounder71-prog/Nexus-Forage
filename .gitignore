@@ -1,0 +1,41 @@
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+
+# Node
+node_modules/
+npm-debug.log*
+
+# Environment secrets
+.env
+.env.local
+.env.*.local
+
+# Databases & local state
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
+# Logs
+*.log
+http.out.log
+http.err.log
+server.out.log
+server.err.log
+
+# IDE & OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+.qodo/
