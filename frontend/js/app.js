@@ -24,6 +24,25 @@ document.addEventListener('DOMContentLoaded', () => {
   let lastSequenceNumber = 0;
   let demoMode = true;
 
+  // Resolve demo mode from the live backend (truthful, not hardcoded). When the
+  // backend is reachable and reports demo_mode=false, the real mission event
+  // stream drives view switching; otherwise the local autopilot demo stays in charge.
+  async function syncDemoModeFromBackend() {
+    try {
+      const statusUrl = window.NexusConfig ? window.NexusConfig.getApiUrl('/api/v1/system/status') : 'http://localhost:8000/api/v1/system/status';
+      const res = await fetch(statusUrl);
+      if (res.ok) {
+        const data = await res.json();
+        if (typeof data.demo_mode === 'boolean') {
+          demoMode = data.demo_mode;
+        }
+      }
+    } catch (e) {
+      // Backend unreachable - stay in demo mode.
+    }
+  }
+  syncDemoModeFromBackend();
+
   // Backend-event waiters: the autopilot HUD resolves a stage only when the real
   // backend mission reaches that stage (instead of a scripted timer). Map of
   // event_type -> { resolver, seen } where the resolver advances the HUD.
@@ -490,7 +509,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (transcriptOutput) {
       transcriptOutput.innerHTML = `
         <span style="color:#10b981; font-weight:700;">
-          <i class="fa-solid fa-check-circle"></i> OMI TRANSCRIBED (98% CONF): "${fallbackText}"
+          <i class="fa-solid fa-check-circle"></i> OMI TRANSCRIBED (CONFIDENCE PENDING): "${fallbackText}"
         </span>
       `;
     }
@@ -571,8 +590,8 @@ document.addEventListener('DOMContentLoaded', () => {
         motion: "Which growth and capital survival strategy should be adopted for the B2B SaaS platform?",
         strategies: [
           { id: 'PLAN_A', title: 'Silent In-Flight Hotfix & Delayed Post-Mortem', risk_score: 0.78, success_likelihood: 0.45, estimated_time_mins: 14, cost_usd: 8000, explanation: 'Quiet patch risks severe enterprise customer backlash if undetected data inconsistencies surface.' },
-          { id: 'PLAN_B', title: 'Proactive Enterprise SLA Credits + High-Availability Hotfix', risk_score: 0.08, success_likelihood: 0.96, estimated_time_mins: 22, cost_usd: 25000, explanation: 'Restores enterprise trust, prevents 95%+ renewal churn, and isolates multi-tenant pods.', recommended: true },
-          { id: 'PLAN_C', title: 'Complete Multi-Tenant Pod Isolation & Maintenance Window', risk_score: 0.42, success_likelihood: 0.75, estimated_time_mins: 48, cost_usd: 12000, explanation: 'Guarantees 100% data integrity but enforces 4-hour scheduled maintenance window.' }
+          { id: 'PLAN_B', title: 'Proactive Enterprise SLA Credits + High-Availability Hotfix', risk_score: 0.08, success_likelihood: 0.96, estimated_time_mins: 22, cost_usd: 25000, explanation: 'Restores enterprise service and isolates affected multi-tenant pods until validation completes.', recommended: true },
+          { id: 'PLAN_C', title: 'Complete Multi-Tenant Pod Isolation & Maintenance Window', risk_score: 0.42, success_likelihood: 0.75, estimated_time_mins: 48, cost_usd: 12000, explanation: 'Fully isolates tenant pods during a scheduled maintenance window; no integrity guarantee is implied.' }
         ],
         vulnerabilities: [
           { name: "Enterprise Customer Churn Cascades on SLA Breach", severity: "CRITICAL" },
@@ -591,7 +610,7 @@ document.addEventListener('DOMContentLoaded', () => {
           { agent_name: "Strategic Growth Lead", phase: "PHASE 02: DIVERGENCE", content: "Plan B provides upfront SLA credits that convert this incident into a trust-building milestone." },
           { agent_name: "Adversarial Red Team", phase: "PHASE 03: CROSS-EXAM", content: "Red team audit confirms Plan A has an 78% probability of secondary customer churn." },
           { agent_name: "Financial Auditor", phase: "PHASE 04: MITIGATION", content: "The $25k credit pool is easily offset by preserving $480k in annual recurring contracts." },
-          { agent_name: "Executive Response Lead", phase: "PHASE 05: ROLL-CALL VOTE", content: "94% Parliamentary consensus reached: Adopt Plan B with isolated container pod hotfixes." }
+          { agent_name: "Executive Response Lead", phase: "PHASE 05: ROLL-CALL VOTE", content: "Scenario script: ballot shadows Plan B with strong consensus. Live backend consensus replaces this when a mission runs." }
         ],
         consensus: {
           motion: "Which growth and capital survival strategy should be adopted for the B2B SaaS platform?",
@@ -599,7 +618,7 @@ document.addEventListener('DOMContentLoaded', () => {
           selected_strategy: "PLAN_B",
           supporting_agents: ["Mission Commander", "Strategic Growth Lead", "Qdrant Memory Indexer", "Financial Auditor", "Executive Response Strategist"],
           dissenting_agents: ["Adversarial Red Team Auditor"],
-          reasoning_summary: "Plan B (Proactive Enterprise SLA Credits + High-Availability Hotfix) adopted with 94% agreement to safeguard enterprise renewals and eliminate churn risk.",
+          reasoning_summary: "Plan B (Proactive Enterprise SLA Credits + High-Availability Hotfix) is the pre-scripted scenario preference; a live backend mission supersedes this with measured consensus.",
           concluded: true
         }
       };
@@ -608,7 +627,7 @@ document.addEventListener('DOMContentLoaded', () => {
         motion: "Which critical infrastructure isolation and recovery protocol should be executed?",
         strategies: [
           { id: 'PLAN_A', title: 'Global WAN Interface Reset & SCADA Firmware Re-Flash', risk_score: 0.85, success_likelihood: 0.38, estimated_time_mins: 60, cost_usd: 120000, explanation: 'Flashing firmware over wide network risks cascading 60Hz feeder trips across entire city.' },
-          { id: 'PLAN_B', title: 'Substations 04 & 09 Physical Air-Gap + Microgrid Key Failover', risk_score: 0.05, success_likelihood: 0.97, estimated_time_mins: 15, cost_usd: 15000, explanation: 'Air-gaps compromised SCADA nodes while encrypted microgrid power loops balance 60Hz frequency with 0 blackout.', recommended: true },
+          { id: 'PLAN_B', title: 'Substations 04 & 09 Physical Air-Gap + Microgrid Key Failover', risk_score: 0.05, success_likelihood: 0.97, estimated_time_mins: 15, cost_usd: 15000, explanation: 'Air-gaps compromised SCADA nodes and isolates substations 04 and 09 from the primary grid until validation.', recommended: true },
           { id: 'PLAN_C', title: 'Controlled Rolling 15-Minute Feeder Brownouts', risk_score: 0.55, success_likelihood: 0.70, estimated_time_mins: 35, cost_usd: 45000, explanation: 'Prevents total blackout but impacts hospitals and municipal emergency centers.' }
         ],
         vulnerabilities: [
@@ -666,7 +685,7 @@ document.addEventListener('DOMContentLoaded', () => {
           { agent_name: "Root Cause Analyst", phase: "PHASE 02: DIVERGENCE", content: "Root cause verified: Migration commit added unindexed foreign key lock. In-place hotfix will corrupt active transactions." },
           { agent_name: "Adversarial Red Team", phase: "PHASE 03: CROSS-EXAM", content: "Red team stress test: In-place patch creates a 100% database lock contention. Plan A is fatally vulnerable." },
           { agent_name: "Rollback Strategist", phase: "PHASE 04: MITIGATION", content: "Executing Plan B: Instant Blue-Green ingress switchback drains canary traffic in 120 seconds." },
-          { agent_name: "Response Strategist", phase: "PHASE 05: ROLL-CALL VOTE", content: "Consensus reached at 96% agreement: Plan B Blue-Green Switchback adopted." }
+          { agent_name: "Response Strategist", phase: "PHASE 05: ROLL-CALL VOTE", content: "Consensus reached: Plan B Blue-Green Switchback adopted (score shown from pipeline output)." }
         ],
         consensus: {
           motion: "Which mitigation and rollback strategy should be executed for the production incident?",
@@ -747,7 +766,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (resBefore) resBefore.innerText = `${Math.round((1 - (planA?.success_likelihood || 0.42)) * 100)}/100`;
         if (resAfter && planB) resAfter.innerText = `${Math.round((planB.success_likelihood || 0.98) * 100)}/100`;
-        if (resBadge && planB) resBadge.innerText = `+300% HARDENED`;
+        if (resBadge && planA && planB) {
+          const before = 1 - (planA?.success_likelihood || 0.42);
+          const after = planB.success_likelihood || 0.98;
+          const delta = Math.round((after - before) * 100);
+          resBadge.innerText = `${delta >= 0 ? '+' : ''}${delta}/100 HARDENING`;
+        }
         if (resBar && planB) resBar.style.width = `${Math.round((planB.success_likelihood || 0.98) * 100)}%`;
 
         if (lossBefore && planA) lossBefore.innerText = `$${(planA.cost_usd || 12000).toLocaleString()}`;
@@ -1277,8 +1301,8 @@ topology:
             state: 'success',
             label: data.label || data.task_name || data.task_id,
             agent: data.agent_name || data.agent,
-            time: '240ms',
-            confidence: '98%',
+            time: data.execution_time_ms ? `${Math.round(data.execution_time_ms)}ms` : '—',
+            confidence: typeof data.confidence === 'number' ? `${Math.round(data.confidence * 100)}%` : '—',
             findings: data.summary || data.message || (data.result && (data.result.summary || data.result.message))
           });
         }
@@ -1402,7 +1426,7 @@ topology:
       <div style="font-weight:700; color:#fff; font-size:0.85rem; margin-bottom:4px;">${data.title || '🚨 MISSION COMMAND REPORT'}</div>
       <div style="color:var(--text-muted); margin-bottom:6px;"><strong>Severity:</strong> <span style="color:#ef4444;">${data.severity || '🔴 CRITICAL'}</span> | <strong>Est. Recovery:</strong> ${data.estimated_recovery || '~30-45 mins'}</div>
       <div style="margin-bottom:6px; color:#fff;"><strong>Strategy:</strong> <span style="color:var(--color-success);">${data.recommended_strategy || 'PLAN B (Reinforced)'}</span></div>
-      <div style="color:var(--primary-bright); font-family:var(--font-mono); font-size:0.7rem; margin-bottom:6px;">CONFIDENCE: ${data.confidence || '94%'} • DOMAIN: ${data.domain || 'ADAPTIVE'}</div>
+      <div style="color:var(--primary-bright); font-family:var(--font-mono); font-size:0.7rem; margin-bottom:6px;">CONFIDENCE: ${data.confidence || '--'} • DOMAIN: ${data.domain || 'ADAPTIVE'}</div>
       <div style="font-size:0.7rem; color:var(--text-subtle); line-height:1.4;"><strong>Why this strategy?</strong> ${data.why_this_strategy || 'Highest success probability while strictly mitigating collateral risks.'}</div>
       ${actionsHtml}
     `;
@@ -2047,7 +2071,7 @@ topology:
     { num: 4, title: '⚡ Parallel DAG Task Execution (SCADA & Feeder)', view: 'live-mission', baseDuration: 2200 },
     { num: 5, title: '🏛️ Multi-Agent Deliberation Parliament (5 Debate Rounds)', view: 'agent-parliament', baseDuration: 2300 },
     { num: 6, title: '🛡️ Red Team Adversarial Stress Test (Plan A → Plan B)', view: 'red-team', baseDuration: 1900 },
-    { num: 7, title: '📊 Monte-Carlo Strategy Simulation (94% Plan B Win)', view: 'simulation-engine', baseDuration: 1700 },
+    { num: 7, title: '📊 Monte-Carlo Strategy Simulation (Plan Selection)', view: 'simulation-engine', baseDuration: 1700 },
     { num: 8, title: '🧠 Qdrant Reflection Writeback & Executive Mission Report', view: 'memory-intelligence', baseDuration: 2000 }
   ];
 
@@ -2323,12 +2347,30 @@ topology:
         const consensusEl = document.getElementById('telemetry-consensus-val');
         const qdrantEl = document.getElementById('qdrant-vectors-count');
 
-        if (latencyEl && data.summary) latencyEl.textContent = `${Math.round(data.summary.avg_pipeline_latency_ms || 28)}ms`;
-        if (consensusEl && data.summary) consensusEl.textContent = `${(data.summary.avg_deliberation_consensus || 95.4).toFixed(1)}%`;
-        if (qdrantEl && data.memory_subsystem) qdrantEl.textContent = Number(data.memory_subsystem.total_vectors_indexed || 14290).toLocaleString();
+        if (latencyEl && data.summary) {
+          const latency = data.summary.avg_pipeline_latency_ms;
+          latencyEl.textContent = (typeof latency === 'number') ? `${Math.round(latency)}ms` : '--ms';
+        }
+        if (consensusEl && data.summary) {
+          const consensus = data.summary.avg_deliberation_consensus;
+          consensusEl.textContent = (typeof consensus === 'number') ? `${consensus.toFixed(1)}%` : '--%';
+        }
+        const analyticsConsensus = document.getElementById('telemetry-consensus');
+        const analyticsConsensusFill = document.getElementById('telemetry-consensus-fill');
+        if (data.summary && (analyticsConsensus || analyticsConsensusFill)) {
+          const consensus = data.summary.avg_deliberation_consensus;
+          if (typeof consensus === 'number') {
+            if (analyticsConsensus) analyticsConsensus.textContent = `${consensus.toFixed(1)}%`;
+            if (analyticsConsensusFill) analyticsConsensusFill.style.width = `${Math.min(100, consensus).toFixed(1)}%`;
+          }
+        }
+        if (qdrantEl && data.memory_subsystem) {
+          const vectors = data.memory_subsystem.total_vectors_indexed;
+          qdrantEl.textContent = (typeof vectors === 'number') ? vectors.toLocaleString() : '--';
+        }
       }
     } catch (e) {
-      // Offline fallback: keep responsive baseline
+      // Offline fallback: leave the neutral '--' placeholders in place.
     }
   }
   setInterval(pollHUDTelemetry, 8000);

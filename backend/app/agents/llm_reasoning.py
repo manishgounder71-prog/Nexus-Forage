@@ -1,12 +1,20 @@
 import os
 import re
 import json
+import asyncio
 import logging
 import hashlib
 import datetime
 from typing import Dict, Any, List, Optional
 import httpx
 from app.core.config import settings
+from app.core.costing import usage_register, UsageRecord, estimate_tokens, truncate_tokens
+from app.core.caching import llm_cache
+from app.core.prompt_guard import (
+    apply_no_fabrication_directive,
+    sanitize_untrusted_input,
+    validate_json_schema,
+)
 
 logger = logging.getLogger("nexus_forge.llm_reasoning")
 
@@ -22,6 +30,22 @@ class DynamicLLMReasoningEngine:
     def __init__(self):
         self.gemini_key = settings.GEMINI_API_KEY
         self.lyzr_key = settings.LYZR_API_KEY
+        self._shared_httpx: Optional[httpx.AsyncClient] = None
+
+    def _client(self) -> httpx.AsyncClient:
+        """Reused AsyncClient (no per-request session churn)."""
+        if self._shared_httpx is None or self._shared_httpx.is_closed:
+            self._shared_httpx = httpx.AsyncClient(timeout=12.0)
+        return self._shared_httpx
+
+    @staticmethod
+    def _record_usage(model: str, prompt_text: str, completion_text: str, source: str) -> None:
+        usage_register.record(UsageRecord(
+            model=model,
+            prompt_tokens=estimate_tokens(prompt_text),
+            completion_tokens=estimate_tokens(completion_text),
+            source=source,
+        ))
 
     @property
     def has_live_llm(self) -> bool:
@@ -52,6 +76,26 @@ class DynamicLLMReasoningEngine:
         # Dynamic Parametric Engine (computes from input tokens, not hardcoded domain constants)
         return self._compute_parametric_deliberation(motion_text, participating_agents, domain_id)
 
+    def generate_parliament_deliberation_sync(
+        self,
+        motion_text: str,
+        participating_agents: List[Any],
+        domain_id: str = "CRITICAL_INFRASTRUCTURE"
+    ) -> Dict[str, Any]:
+        """Sync wrapper for sync call sites (e.g. domain pack debate templates).
+
+        If called inside a running event loop, uses the parametric engine so the
+        loop is never blocked; otherwise runs the full async (live-LLM enabled)
+        path to completion.
+        """
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            return asyncio.run(
+                self.generate_parliament_deliberation(motion_text, participating_agents, domain_id)
+            )
+        return self._compute_parametric_deliberation(motion_text, participating_agents, domain_id)
+
     async def _generate_gemini_deliberation(
         self,
         motion_text: str,
@@ -59,34 +103,74 @@ class DynamicLLMReasoningEngine:
         domain_id: str
     ) -> Optional[Dict[str, Any]]:
         agent_names = [getattr(a, "name", str(a)) for a in participating_agents[:5]]
-        prompt = (
+        safe_motion = sanitize_untrusted_input(motion_text)["raw_text"]
+        model = "gemini-1.5-flash"
+        cache_key_parts = (domain_id, hashlib.sha256(safe_motion.encode("utf-8")).hexdigest())
+        cached = llm_cache.get("gemini_deliberation", *cache_key_parts)
+        if cached is not None:
+            return cached
+
+        base_prompt = (
             f"You are the consensus arbiter for the NEXUS FORGE Autonomous Crisis Swarm.\n"
-            f"Crisis Motion: '{motion_text}'\n"
+            f"Crisis Motion: '{safe_motion[:400]}'\n"
             f"Participating Agents: {', '.join(agent_names)}\n"
             f"Domain: {domain_id}\n\n"
             f"Synthesize an autonomous deliberation. Return JSON with:\n"
             f"- 'selected_strategy': a specific capital-case strategy identifier (e.g. PLAN_B_DYNAMIC_CONTAINMENT)\n"
-            f"- 'consensus_score': float between 0.90 and 0.98\n"
+            f"- 'consensus_score': float between 0.50 and 0.99\n"
             f"- 'reasoning_summary': 2-3 sentences explaining the trade-offs and chosen course of action\n"
             f"- 'supporting_agents': list of agent names\n"
             f"- 'dissenting_agents': list of 1-2 dissenting agent names\n"
             f"- 'phase_speeches': dictionary mapping phases (01_EVIDENCE, 02_CHALLENGE, 03_COUNTERARGUMENT, 04_REVISION, 05_CONSENSUS) "
             f"to a short agent quote addressing the specific crisis."
         )
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={self.gemini_key}"
+        prompt = truncate_tokens(
+            apply_no_fabrication_directive(base_prompt),
+            int(getattr(settings, "MAX_CONTEXT_TOKENS", 1200)),
+        )
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={self.gemini_key}"
         payload = {
             "contents": [{"parts": [{"text": prompt}]}],
             "generationConfig": {"response_mime_type": "application/json"}
         }
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.post(url, json=payload)
-            if resp.status_code == 200:
-                data = resp.json()
-                raw_json = data["candidates"][0]["content"]["parts"][0]["text"]
-                parsed = json.loads(raw_json)
-                parsed["provider"] = "Gemini 1.5 Flash (Live Multi-Agent Deliberation)"
-                return parsed
-        return None
+        required = ["selected_strategy", "consensus_score", "reasoning_summary"]
+        optional = ["supporting_agents", "dissenting_agents", "phase_speeches"]
+        parsed: Optional[Dict[str, Any]] = None
+        async with self._client() as client:
+            for attempt in range(2):
+                resp = await client.post(url, json=payload)
+                if resp.status_code != 200:
+                    logger.warning(f"Gemini deliberation HTTP {resp.status_code}: {resp.text[:200]}")
+                    break
+                try:
+                    data = resp.json()
+                    raw_json = data["candidates"][0]["content"]["parts"][0]["text"]
+                    candidate = json.loads(raw_json)
+                    check = validate_json_schema(candidate, required, optional)
+                    if check["valid"]:
+                        parsed = candidate
+                        break
+                    # Retry once with a strict-compliance line on absent keys.
+                    payload["contents"] = [{"parts": [{
+                        "text": prompt + "\nRETRY: The previous response was missing keys: "
+                                + ", ".join(check["missing"])
+                                + ". Return ONLY complete JSON with all required keys."
+                    }]}]
+                except Exception as e:
+                    logger.warning(f"Gemini deliberation parse failed (attempt {attempt + 1}): {e}")
+                    break
+
+        if parsed is None:
+            return None
+        if not (0.0 <= float(parsed.get("consensus_score") or 0.0) <= 1.0):
+            logger.warning("Gemini deliberation returned out-of-range consensus_score; discarding.")
+            return None
+
+        completion_text = json.dumps(parsed)
+        self._record_usage(model, prompt, completion_text, source="gemini_deliberation")
+        parsed["provider"] = "Gemini 1.5 Flash (Live Multi-Agent Deliberation)"
+        llm_cache.set("gemini_deliberation", parsed, *cache_key_parts)
+        return parsed
 
     def _compute_parametric_deliberation(
         self,
@@ -150,8 +234,9 @@ class DynamicLLMReasoningEngine:
             "topic": topic,
             "primary_entity": primary,
             "secondary_entity": secondary,
-            "infra_agent_view": f"Halt and air-gap {primary} immediately to eliminate attack/failure propagation (Confidence 94%)",
-            "risk_agent_view": f"Stagger {primary} isolation with automated load-shedding to prevent cascade disruption on {secondary} (Confidence 89%)"
+            "infra_agent_view": f"Halt and air-gap {primary} immediately to eliminate attack/failure propagation",
+            "risk_agent_view": f"Stagger {primary} isolation with automated load-shedding to prevent cascade disruption on {secondary}",
+            "source": "parametrized_estimate (not LLM-verified)"
         }
 
     def generate_red_team_audit(self, prompt: str, domain: str) -> Dict[str, Any]:
@@ -166,14 +251,18 @@ class DynamicLLMReasoningEngine:
             {"severity": "LOW", "name": f"Replay Token / Telemetry Buffer Race Condition on {primary}"}
         ]
         
+        for item in vulnerabilities:
+            item["source"] = "parametrized_estimate (not LLM-verified)"
+
         plan_evolution = f"PLAN A (Direct Hard Reset of {primary}) → RED TEAM ADVERSARIAL AUDIT → PLAN B (Decoupled Resilient Failover to {secondary})"
         
         return {
             "vulnerabilities": vulnerabilities,
             "plan_evolution": plan_evolution,
             "selected_strategy": f"PLAN_B_RESILIENT_{re.sub(r'[^A-Za-z0-9]+', '_', primary.upper()).strip('_')[:16]}_FAILOVER",
-            "risk_after": 0.08,
-            "hardening": f"Air-gapped verification loops & canary healthchecks enforced on {primary} and {secondary}."
+            "risk_after": None,
+            "risk_estimation": "No validated residual-risk measurement available without a live adversarial run.",
+            "hardening": f"Air-gapped verification loops & canary healthchecks proposed on {primary} and {secondary}."
         }
 
     def _extract_key_entities(self, text: str) -> List[str]:

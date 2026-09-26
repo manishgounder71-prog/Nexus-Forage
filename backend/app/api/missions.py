@@ -145,8 +145,8 @@ async def get_mission_status(mission_id: str):
         return master_mission_engine.active_missions[mission_id]
     return {
         "mission_id": mission_id,
-        "status": "EXECUTING",
-        "message": "Mission is actively executing in background multi-agent pipeline."
+        "status": "UNKNOWN",
+        "message": "No record of this mission in the current process. It may not have been started, or it started in a previous process instance."
     }
 
 @router.get("/{mission_id}/events", response_model=List[Dict[str, Any]])
@@ -162,12 +162,12 @@ async def get_mission_dag(mission_id: str):
         return {
             "mission_id": mission_id,
             "status": mission["status"],
-            "tasks_executed": mission.get("tasks_executed", 4)
+            "tasks_executed": mission.get("tasks_executed")
         }
     return {
         "mission_id": mission_id,
-        "status": "RUNNING",
-        "tasks_executed": 2
+        "status": "UNKNOWN",
+        "tasks_executed": None
     }
 
 @router.get("/{mission_id}/export", response_model=Dict[str, Any])
@@ -184,23 +184,57 @@ async def export_mission_dossier(mission_id: str):
     tasks = [e for e in events if "TASK" in e.get("event_type", "") or "DAG" in e.get("event_type", "")]
     resolutions = [e for e in events if "RESOLVED" in e.get("event_type", "") or "MISSION_COMPLETED" in e.get("event_type", "")]
 
+    # Real evidence citations from Qdrant (empty list = no fabricated precedent)
+    memory_citations = []
+    try:
+        from app.memory.qdrant_client import qdrant_store
+        raw_prompt = mission.get("raw_prompt", "")
+        if raw_prompt:
+            for p in qdrant_store.query_memory("all", raw_prompt, limit=5)[:5]:
+                memory_citations.append({
+                    "collection": p.get("memory_type", "mission_memory"),
+                    "ref_id": p.get("memory_id"),
+                    "relevance": p.get("similarity_score"),
+                    "is_synthetic": bool(p.get("is_synthetic")),
+                    "source": p.get("source", "organization_pipeline"),
+                    "excerpt": (p.get("content") or "")[:180],
+                })
+    except Exception:
+        memory_citations = []
+
+    consensus_score = mission.get("consensus", {}).get("consensus_score")
+    if consensus_score is None:
+        consensus_scores = [
+            e.get("data", {}).get("consensus_score")
+            for e in events
+            if e.get("event_type") == "CONSENSUS_REACHED"
+            and e.get("data", {}).get("consensus_score") is not None
+        ]
+        consensus_score = consensus_scores[0] if consensus_scores else None
+
+    concluded = bool(resolutions) or bool(consensus_score)
+
     dossier = {
         "dossier_id": f"dos_{mission_id}_{int(datetime.datetime.now(datetime.timezone.utc).timestamp())}",
         "export_timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "mission_id": mission_id,
-        "status": mission.get("status", "COMPLETED"),
-        "primary_domain": mission.get("domain", "Critical Infrastructure"),
+        "status": mission.get("status", "EXECUTING"),
+        "primary_domain": mission.get("domain") or "Not Detected",
         "incident_overview": {
-            "title": mission.get("title", f"Crisis Incident {mission_id}"),
+            "title": mission.get("title") or f"Crisis Incident {mission_id}",
             "raw_prompt": mission.get("raw_prompt", "Autonomous incident remediation"),
             "total_events_logged": len(events),
-            "consensus_score": mission.get("consensus_score", 96.4),
-            "red_team_stress_tested": True
+            "consensus_score": consensus_score,
+            "red_team_stress_tested": any("RED_TEAM_COMPLETED" in e.get("event_type", "") for e in events)
         },
         "deliberation_summary": {
-            "rounds_held": max(len(deliberations), 2),
+            "rounds_held": len(deliberations),
             "dissenting_views_recorded": len([d for d in deliberations if "DISSENT" in d.get("event_type", "")]),
-            "consensus_outcome": "Unanimous Consensus reached with mitigations applied"
+            "consensus_outcome": (
+                f"Consensus reached. Consensus score: {consensus_score:.3f} "
+                f"(model-derived score, not a human agreement percentage)."
+                if concluded else "In progress — no resolved decision on record."
+            )
         },
         "tasks_executed": [
             {
@@ -211,15 +245,12 @@ async def export_mission_dossier(mission_id: str):
             }
             for i, t in enumerate(tasks[:15])
         ],
-        "qdrant_memory_citations": [
-            {"collection": "missions", "ref_id": f"qdr_{mission_id}_01", "relevance": 0.94},
-            {"collection": "decisions", "ref_id": f"qdr_{mission_id}_02", "relevance": 0.91},
-            {"collection": "reflection", "ref_id": f"qdr_{mission_id}_03", "relevance": 0.88}
-        ],
+        "qdrant_memory_citations": memory_citations,
         "compliance_signoff": {
-            "automated_signoff": True,
-            "hash_signature": f"sha256:{hash(mission_id) & 0xffffffffffffffff:016x}",
-            "regulatory_ready": True
+            "automated_signoff": False,
+            "hash_signature": None,
+            "regulatory_ready": False,
+            "note": "Automated sign-off is disabled; compliance evaluation requires human review."
         }
     }
     return dossier

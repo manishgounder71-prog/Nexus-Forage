@@ -1,6 +1,7 @@
 import datetime
 from typing import Dict, Any, List, Optional
 from fastapi import APIRouter, Query
+from app.core.config import settings
 from app.orchestration.mission_engine import master_mission_engine
 
 router = APIRouter(prefix="/audit", tags=["Regulatory & Audit Logs"])
@@ -55,15 +56,29 @@ async def get_audit_logs(
                 "details": ev.get("data", {})
             })
 
-    # If no logs exist yet (fresh start), provide structured baseline demo audit records
+    # If no logs exist yet (fresh start), provide truthful boot initialization records.
+    # These describe what was really initialized but make no unverifiable claims
+    # (e.g. no "7 collections verified" or "8 agents registered" assertions).
     if not all_logs:
         baseline_time = datetime.datetime.now(datetime.timezone.utc)
+        try:
+            from app.memory.qdrant_client import qdrant_store
+            col_count = qdrant_store.get_collection_stats()["total_collections"]
+            storage = "Qdrant Cloud" if settings.QDRANT_URL else "Local In-Memory"
+        except Exception:
+            col_count = 0
+            storage = "Unknown"
+        try:
+            from app.agents.registry import agent_registry
+            agent_count = len(agent_registry.get_all_agents())
+        except Exception:
+            agent_count = 0
         baseline_events = [
-            ("SYSTEM_BOOT", "INITIALIZATION", "INFO", "NEXUS FORGE Autonomous Crisis Core initialized with 6 sponsor submodules.", "SYSTEM"),
-            ("QDRANT_COLLECTION_SYNC", "MEMORY", "INFO", "Verified 7 Qdrant cosine vector memory collections ready.", "QDRANT_CLIENT"),
-            ("LYZR_SWARM_CONNECT", "ORCHESTRATION", "INFO", "Registered 8 specialized multi-agent swarm personas with Lyzr Agent Framework.", "LYZR_RUNTIME"),
-            ("CONNECTOR_BUS_ONLINE", "INGESTION", "INFO", "Dynamic organization connector event pipeline active on localhost.", "EVENT_BUS"),
-            ("SECURITY_AUDIT_VERIFIED", "COMPLIANCE", "INFO", "End-to-end audit logging enabled. Ready for mission dispatch.", "AUDIT_WATCHDOG")
+            ("SYSTEM_BOOT", "INITIALIZATION", "INFO", "NEXUS FORGE Autonomous Crisis Core initialized.", "SYSTEM"),
+            ("QDRANT_INIT", "MEMORY", "INFO", f"Qdrant vector memory client started ({storage}). Collections present: {col_count}.", "QDRANT_CLIENT"),
+            ("AGENT_REGISTRY_INIT", "ORCHESTRATION", "INFO", f"Agent registry loaded {agent_count} registered agents.", "AGENT_REGISTRY"),
+            ("CONNECTOR_BUS_INIT", "INGESTION", "INFO", "Organization connector event pipeline initialized.", "EVENT_BUS"),
+            ("AUDIT_LOGSTORE_INIT", "COMPLIANCE", "INFO", "Audit logging enabled. Awaiting system events.", "AUDIT_WATCHDOG")
         ]
         for i, (ev_type, stage, sev, msg, actor) in enumerate(baseline_events):
             t = (baseline_time - datetime.timedelta(minutes=(5 - i))).isoformat()
@@ -76,7 +91,7 @@ async def get_audit_logs(
                 "severity": sev,
                 "message": msg,
                 "actor": actor,
-                "details": {"verified": True}
+                "details": {"boot": True}
             })
 
     total_count = len(all_logs)

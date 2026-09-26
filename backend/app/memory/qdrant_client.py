@@ -1,7 +1,10 @@
 import os
+import re
 import uuid
+import math
 import hashlib
 import datetime
+from collections import Counter
 from typing import List, Dict, Any, Optional
 from app.core.config import settings
 
@@ -77,6 +80,70 @@ def _vector_cosine_similarity(v1: List[float], v2: List[float]) -> float:
         return 0.0
     return float(dot / (norm_a * norm_b))
 
+
+def _tokenize(text: str) -> List[str]:
+    """Lowercase alphanumeric token stream used for lexical (keyword) scoring."""
+    return re.findall(r"[a-z0-9]+", (text or "").lower())
+
+
+class _Bm25Index:
+    """Lightweight in-memory BM25 index over mirrored memory records.
+
+    Provides genuine lexical scoring for hybrid retrieval (RRF fusion with the
+    semantic vector path). Populated per-query from the in-memory mirror so the
+    demo never depends on a live BM25 server.
+    """
+
+    def __init__(self, items: List[Dict[str, Any]]):
+        self.doc_terms: Dict[str, Counter] = {}
+        self.doc_len: Dict[str, int] = {}
+        self.docs_with: Counter = Counter()
+        self.avgdl = 1.0
+        self.k1 = 1.2
+        self.b = 0.75
+        self._build(items)
+
+    def _build(self, items: List[Dict[str, Any]]) -> None:
+        total_len = 0
+        for it in items:
+            mid = it.get("memory_id")
+            if not mid:
+                continue
+            text = " ".join([
+                str(it.get("content", "")),
+                str(it.get("title", "")),
+                " ".join(str(t) for t in it.get("tags", [])),
+            ])
+            terms = _tokenize(text)
+            counts = Counter(terms)
+            self.doc_terms[mid] = counts
+            n = len(terms) or 1
+            self.doc_len[mid] = n
+            total_len += n
+            for t in set(terms):
+                self.docs_with[t] += 1
+        if items and total_len:
+            self.avgdl = total_len / len(items)
+
+    def _idf(self, term: str, corpus_size: int) -> float:
+        df = self.docs_with.get(term, 0)
+        return math.log(1 + (corpus_size - df + 0.5) / (df + 0.5))
+
+    def score(self, query_terms: List[str], memory_id: str) -> float:
+        counts = self.doc_terms.get(memory_id)
+        if not counts:
+            return 0.0
+        dl = self.doc_len[memory_id]
+        corpus_size = len(self.doc_terms) or 1
+        s = 0.0
+        for t, f in Counter(query_terms).items():
+            tf = counts.get(t, 0)
+            if tf == 0:
+                continue
+            k = self.k1 * (1 - self.b + self.b * dl / self.avgdl)
+            s += self._idf(t, corpus_size) * ((tf * (self.k1 + 1)) / (tf + k))
+        return s
+
 MEMORY_COLLECTIONS = [
     "mission_memory",
     "decision_memory",
@@ -123,29 +190,36 @@ class QdrantMemoryStore:
             self._seed_sample_memories()
 
     def _seed_sample_memories(self):
-        """Seed mandatory historical memories across all 5 domains into Qdrant."""
+        """Seed mandatory historical memories across all 5 domains into Qdrant.
+
+        NOTE: the seed corpus is a DEMO corpus. Every seed is explicitly labeled
+        ``is_synthetic: true`` / ``source: demo_seed_corpus`` so downstream
+        consumers can filter or attribute it honestly. Production organizations
+        push their own real decisions via ``write_memory`` (which defaults to
+        ``is_synthetic: false`` / ``source: organization_pipeline``).
+        """
         samples = [
             # Software Incident
             ("mission_memory", "Auth Middleware Deployment Regression 2025", "Null pointer exception in authentication middleware deployed at release tag v2.4. Canary rollback restored service in 8 mins.", 0.96, ["software_incident", "deployment", "rollback"], "SOFTWARE_INCIDENT"),
             ("decision_memory", "Blue-Green Revert Protocol 2025", "Consensus: Execute Blue-Green router switchback rather than in-flight database patch. Zero data loss achieved.", 0.95, ["software_incident", "decision", "blue-green"], "SOFTWARE_INCIDENT"),
-            
+
             # Enterprise Crisis / Power Grid
             ("mission_memory", "SCADA Substation 04 Breach 2025", "Unauthorized PLC command packet injection detected on Substation 04 switchboard. Air-gapped control loops stopped breach within 15 mins.", 0.96, ["enterprise_crisis", "power-grid", "scada", "cyber-attack"], "ENTERPRISE_CRISIS"),
             ("decision_memory", "Grid Failover Protocol 2025", "Consensus Achieved: Deploy Plan B with multi-region microgrid failover loops. Zero grid blackout recorded.", 0.94, ["enterprise_crisis", "decision", "substation"], "ENTERPRISE_CRISIS"),
             ("failure_memory", "Single Point Substation Failure Alert", "Historical Failure: Direct breaker trip without feeder load shedding caused 3-hour secondary blackout.", 0.89, ["enterprise_crisis", "blackout", "substation"], "ENTERPRISE_CRISIS"),
-            
+
             # Startup Strategy
             ("mission_memory", "Series A Bridge & Burn Reduction 2024", "Startup extended runway from 2.8 to 11.2 months by cutting non-core ad spend and launching B2B upfront annuals.", 0.94, ["startup_strategy", "runway", "bridge"], "STARTUP_STRATEGY"),
             ("decision_memory", "B2B Enterprise Upfront Annual Pivot", "Consensus: Shift from monthly freemium to $25k enterprise upfront contracts with 25% wire discount.", 0.93, ["startup_strategy", "decision", "pivot"], "STARTUP_STRATEGY"),
-            
+
             # Supply Chain
             ("mission_memory", "Rotterdam Port Choke Point Rerouting 2024", "Port strike delayed 14 vessels. Inland electrified rail junction corridor preserved cold-chain refrigerated cargo.", 0.93, ["supply_chain", "logistics", "freight"], "SUPPLY_CHAIN"),
             ("decision_memory", "Secondary Sourcing 60/40 Split", "Consensus: Dual-source microcontrollers 60% regional / 40% secondary with pre-qualified tooling.", 0.92, ["supply_chain", "decision", "sourcing"], "SUPPLY_CHAIN"),
-            
+
             # University Operations
             ("mission_memory", "University Exam System DB Fail 2024", "Database connection pool exhaustion during peak registration sync. Lessons: Use decoupled read-only replicas.", 0.95, ["university_operations", "exam", "portal"], "UNIVERSITY_OPERATIONS"),
             ("decision_memory", "Staggered 24h Exam Window Protocol", "Consensus: Offer 24h continuous window with dynamic paper parameter randomization.", 0.93, ["university_operations", "decision", "fairness"], "UNIVERSITY_OPERATIONS"),
-            
+
             # Cross-Domain Learnings
             ("cross_domain_memory", "Cross-Domain Dependency Isolation Principle", "Lesson transferred from Software Incidents to Supply Chain: Decouple dependencies before triggering rapid failovers.", 0.96, ["cross_domain", "architecture", "decoupling"], "CROSS_DOMAIN")
         ]
@@ -154,7 +228,36 @@ class QdrantMemoryStore:
             self.write_memory(
                 collection_name=col,
                 content=content,
-                metadata={"title": title, "confidence": conf, "tags": tags, "outcome": "successful", "domain": dom}
+                metadata={
+                    "title": title,
+                    "confidence": conf,
+                    "tags": tags,
+                    "outcome": "successful",
+                    "domain": dom,
+                    "is_synthetic": True,
+                    "source": "demo_seed_corpus",
+                },
+            )
+
+        dissent_samples = [
+            ("dissent_memory", "Risk Agent: Canary Rollback Too Fast for Auth Middleware", "Risk Agent argued the 8-minute canary rollback window is too aggressive; schema-incompatible rows could still poison reads. Recommended dual-write reconciliation columns during rollback.", 0.91, ["software_incident", "dissent", "rollback"], "SOFTWARE_INCIDENT"),
+            ("dissent_memory", "Academic Risk Agent: Staggered Exam Windows Invite Collusion", "Academic Risk Agent dissented from the 24-hour staggered exam window, citing paper-leakage and collusion risk. Proposed algorithmic variable randomization per exam copy instead.", 0.92, ["university_operations", "dissent", "exam"], "UNIVERSITY_OPERATIONS"),
+            ("dissent_memory", "Cost Agent: Air Freight Batch-1 Case", "Operational Impact Agent favored a first-batch air cargo airlift to prevent factory line stop, despite cost objections, while rail corridors loaded the bulk volume.", 0.90, ["supply_chain", "dissent", "freight"], "SUPPLY_CHAIN"),
+        ]
+
+        for col, title, content, conf, tags, dom in dissent_samples:
+            self.write_memory(
+                collection_name=col,
+                content=content,
+                metadata={
+                    "title": title,
+                    "confidence": conf,
+                    "tags": tags,
+                    "outcome": "dissent_recorded",
+                    "domain": dom,
+                    "is_synthetic": True,
+                    "source": "demo_seed_corpus",
+                },
             )
 
     def write_memory(
@@ -187,7 +290,9 @@ class QdrantMemoryStore:
             "confidence": metadata.get("confidence", 0.92),
             "outcome": metadata.get("outcome", "successful"),
             "tags": metadata.get("tags", ["nexus_forge", "adaptive_command"]),
-            "title": metadata.get("title", content[:40])
+            "title": metadata.get("title", content[:40]),
+            "is_synthetic": bool(metadata.get("is_synthetic", False)),
+            "source": metadata.get("source", "organization_pipeline"),
         }
 
         # Content-aware deterministic 384-dim embedding
@@ -241,6 +346,95 @@ class QdrantMemoryStore:
             "collections": stats
         }
 
+    def _hybrid_merge(
+        self,
+        collection_name: str,
+        query: str,
+        limit: int,
+        vector_hits: List[Dict[str, Any]],
+        filter_tags: Optional[List[str]] = None,
+        domain: Optional[str] = None,
+        organization_id: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
+        """RRF fusion of semantic vector hits with BM25 keyword scoring."""
+        qv = embed_text(query)
+        query_terms = _tokenize(query)
+
+        pool = []
+        if collection_name == "all":
+            for c in MEMORY_COLLECTIONS:
+                pool.extend(self.in_memory_store[c])
+        else:
+            pool = self.in_memory_store.get(collection_name, [])
+
+        filtered = []
+        for item in pool:
+            if organization_id:
+                rec_org = item.get("organization_id", settings.DEMO_ORG_ID)
+                if rec_org != organization_id:
+                    continue
+            if filter_tags and not any(t in item.get("tags", []) for t in filter_tags):
+                continue
+            filtered.append(item)
+
+        candidates: Dict[str, Dict[str, Any]] = {}
+        for hit in vector_hits:
+            mid = hit.get("memory_id")
+            if mid:
+                hit.setdefault("vector_sim", hit.get("similarity_score", 0.0))
+                candidates[mid] = hit
+        for item in filtered:
+            candidates.setdefault(item.get("memory_id"), item)
+
+        vector_scores: Dict[str, float] = {}
+        keyword_scores: Dict[str, float] = {}
+        for mid, item in candidates.items():
+            item_vec = item.get("vector")
+            if not item_vec or len(item_vec) != VECTOR_DIM:
+                item_vec = embed_text(item.get("content", ""))
+                item["vector"] = item_vec
+            sim = _vector_cosine_similarity(qv, item_vec)
+            item_domain = item.get("domain", "")
+            bonus = 0.03 if (domain and item_domain == domain) else 0.0
+            vector_scores[mid] = min(sim + bonus, 0.99)
+
+        index = _Bm25Index(filtered)
+        for item in filtered:
+            keyword_scores[item.get("memory_id")] = index.score(query_terms, item.get("memory_id"))
+
+        K = 60
+
+        def rank_map(scores: Dict[str, float]):
+            ordered = sorted(scores.items(), key=lambda kv: kv[1], reverse=True)
+            return {mid: pos for pos, (mid, _) in enumerate(ordered, start=1) if scores[mid] > 0}
+
+        vector_ranks = rank_map(vector_scores)
+        keyword_ranks = rank_map(keyword_scores)
+
+        rrf: Dict[str, float] = {}
+        for mid in vector_scores:
+            score = 0.0
+            if mid in vector_ranks:
+                score += 1.0 / (K + vector_ranks[mid])
+            if mid in keyword_ranks:
+                score += 1.0 / (K + keyword_ranks[mid])
+            rrf[mid] = score
+
+        ranked = [mid for mid, _ in sorted(rrf.items(), key=lambda kv: kv[1], reverse=True)]
+        results = []
+        for mid in ranked[:limit]:
+            if rrf[mid] <= 0:
+                continue
+            item = dict(candidates[mid])
+            item["similarity_score"] = round(min(rrf[mid] * K, 0.99), 3)
+            item["vector_sim"] = round(vector_scores.get(mid, 0.0), 3)
+            item["keyword_sim"] = round(keyword_scores.get(mid, 0.0), 3)
+            item["hybrid_method"] = "RRF_hybrid(lexical+semantic)"
+            item["is_synthetic"] = item.get("is_synthetic", False)
+            item["source"] = item.get("source", "organization_pipeline")
+            results.append(item)
+        return results
+
     def query_memory(
         self,
         collection_name: str,
@@ -248,13 +442,22 @@ class QdrantMemoryStore:
         limit: int = 5,
         filter_tags: Optional[List[str]] = None,
         domain: Optional[str] = None,
-        organization_id: Optional[str] = None
+        organization_id: Optional[str] = None,
+        hybrid: bool = True
     ) -> List[Dict[str, Any]]:
-        """Queries semantic vector memories with domain-preferential ranking and strict tenant isolation."""
+        """Hybrid semantic + lexical retrieval (RRF fusion) with provenance labels.
+
+        Returns results with ``similarity_score`` (fused), ``vector_sim``,
+        ``keyword_sim``, ``hybrid_method``, and provenance fields
+        (``is_synthetic`` / ``source``) so downstream consumers can attribute
+        every memory honestly. When ``hybrid=False``, returns pure semantic
+        ranking (vector_sim only).
+        """
         if collection_name not in MEMORY_COLLECTIONS and collection_name != "all":
             collection_name = "mission_memory"
 
         vector = embed_text(query)
+        vector_hits: List[Dict[str, Any]] = []
 
         if self.client and collection_name != "all":
             try:
@@ -267,64 +470,126 @@ class QdrantMemoryStore:
                     collection_name=collection_name,
                     query=vector,
                     query_filter=query_filter,
-                    limit=limit
+                    limit=limit * 3
                 )
-                output = []
                 for record in getattr(points, "points", points):
                     p = dict(record.payload or {})
                     rec_org = p.get("organization_id", settings.DEMO_ORG_ID)
                     if organization_id and rec_org != organization_id:
                         continue
-                    p["similarity_score"] = round(float(record.score) if record.score is not None else 0.95, 3)
-                    output.append(p)
-                    if len(output) >= limit:
+                    p["similarity_score"] = round(float(record.score) if record.score is not None else 0.0, 3)
+                    p["vector_sim"] = p["similarity_score"]
+                    vector_hits.append(p)
+                    if len(vector_hits) >= limit * 3:
                         break
-                if output:
-                    return output
             except Exception as e:
                 print(f"[QdrantMemoryStore] Search error in {collection_name}: {e}")
 
-        # Genuine in-memory vector search with 384-dim cosine similarity
-        store_items = []
-        if collection_name == "all":
-            for c in MEMORY_COLLECTIONS:
-                store_items.extend(self.in_memory_store[c])
         else:
-            store_items = self.in_memory_store.get(collection_name, [])
-
-        scored_items = []
-        for item in store_items:
-            # Tenant isolation filter
-            if organization_id:
-                rec_org = item.get("organization_id", settings.DEMO_ORG_ID)
-                if rec_org != organization_id:
+            store_items = []
+            if collection_name == "all":
+                for c in MEMORY_COLLECTIONS:
+                    store_items.extend(self.in_memory_store[c])
+            else:
+                store_items = self.in_memory_store.get(collection_name, [])
+            for item in store_items:
+                if organization_id:
+                    rec_org = item.get("organization_id", settings.DEMO_ORG_ID)
+                    if rec_org != organization_id:
+                        continue
+                if filter_tags and not any(t in item.get("tags", []) for t in filter_tags):
                     continue
+                item_vec = item.get("vector")
+                if not item_vec or len(item_vec) != len(vector):
+                    item_vec = embed_text(item.get("content", ""))
+                    item["vector"] = item_vec
+                sim = _vector_cosine_similarity(vector, item_vec)
+                item_domain = item.get("domain", "")
+                bonus = 0.03 if (domain and item_domain == domain) else 0.0
+                total_score = min(sim + bonus, 0.99)
+                item_copy = dict(item)
+                item_copy["similarity_score"] = round(float(total_score), 3)
+                item_copy["vector_sim"] = item_copy["similarity_score"]
+                vector_hits.append(item_copy)
 
-            # Tag filter
-            tags = item.get("tags", [])
-            if filter_tags and not any(t in tags for t in filter_tags):
-                continue
+        if not hybrid:
+            vector_hits.sort(key=lambda x: x.get("vector_sim", 0.0), reverse=True)
+            for hit in vector_hits:
+                hit.setdefault("is_synthetic", False)
+                hit.setdefault("source", "organization_pipeline")
+                hit["hybrid_method"] = "semantic_cosine"
+            return vector_hits[:limit]
 
-            item_vec = item.get("vector")
-            if not item_vec or len(item_vec) != len(vector):
-                item_vec = embed_text(item.get("content", ""))
-                item["vector"] = item_vec
+        return self._hybrid_merge(
+            collection_name,
+            query,
+            limit,
+            vector_hits,
+            filter_tags=filter_tags,
+            domain=domain,
+            organization_id=organization_id,
+        )
 
-            # Compute actual cosine distance in 384-dimensional vector space
-            sim = _vector_cosine_similarity(vector, item_vec)
+    def evaluate_retrieval(self, limit: int = 3) -> Dict[str, Any]:
+        """Computes Precision@k, Recall@k and MRR over labeled gold queries.
 
-            # Domain alignment subtle weight (prioritizes domain relevance when tied)
-            item_domain = item.get("domain", "")
-            domain_bonus = 0.03 if (domain and item_domain == domain) else 0.0
-            total_score = min(sim + domain_bonus, 0.99)
+        Ground truth is derived from the labeled seed corpus (documents are
+        relevant when their domain matches the query's gold domain labels),
+        giving a genuine, reproducible retrieval-quality measurement.
+        """
+        gold_queries: List[Dict[str, Any]] = [
+            {"query": "database connection pool exhausted during exam registration system portal", "domains": ["UNIVERSITY_OPERATIONS"]},
+            {"query": "authentication middleware deployment regression canary rollback", "domains": ["SOFTWARE_INCIDENT"]},
+            {"query": "power grid substation scada breach blackout failover", "domains": ["ENTERPRISE_CRISIS"]},
+            {"query": "startup runway bridge funding burn reduction pivot", "domains": ["STARTUP_STRATEGY"]},
+            {"query": "port strike shipping containers freight rerouting sourcing", "domains": ["SUPPLY_CHAIN"]},
+        ]
+        pool = []
+        for c in MEMORY_COLLECTIONS:
+            pool.extend(self.in_memory_store[c])
+        rel_ids = {
+            d.upper(): {it["memory_id"] for it in pool if str(it.get("domain", "")).upper() == d.upper()}
+            for d in ["UNIVERSITY_OPERATIONS", "SOFTWARE_INCIDENT", "ENTERPRISE_CRISIS", "STARTUP_STRATEGY", "SUPPLY_CHAIN"]
+        }
 
-            item_copy = dict(item)
-            item_copy["similarity_score"] = round(float(total_score), 3)
-            scored_items.append((total_score, item_copy))
+        precision_sum = 0.0
+        recall_sum = 0.0
+        mrr_sum = 0.0
+        per_query = []
+        n = len(gold_queries)
 
-        # Sort strictly by descending cosine vector similarity
-        scored_items.sort(key=lambda x: x[0], reverse=True)
-        return [it for _, it in scored_items[:limit]]
+        for gq in gold_queries:
+            retrieved = self.query_memory("all", gq["query"], limit=limit)
+            retrieved_ids = [r.get("memory_id") for r in retrieved]
+            relevant = rel_ids.get(gq["domains"][0], set())
+            hits = sum(1 for mid in retrieved_ids if mid in relevant)
+            precision = hits / max(limit, 1)
+            recall = hits / max(len(relevant), 1)
+            mrr = 0.0
+            for i, mid in enumerate(retrieved_ids, start=1):
+                if mid in relevant:
+                    mrr = 1.0 / i
+                    break
+            precision_sum += precision
+            recall_sum += recall
+            mrr_sum += mrr
+            per_query.append({
+                "query": gq["query"],
+                "gold_domain": gq["domains"][0],
+                "precision_at_k": round(precision, 3),
+                "recall_at_k": round(recall, 3),
+                "mrr": round(mrr, 3),
+            })
+
+        return {
+            "k": limit,
+            "queries_evaluated": n,
+            "precision_at_k": round(precision_sum / n, 3),
+            "recall_at_k": round(recall_sum / n, 3),
+            "mrr": round(mrr_sum / n, 3),
+            "method": "Hybrid retrieval (RRF: semantic + BM25 lexical), evaluated on labeled seed corpus",
+            "per_query": per_query,
+        }
 
 qdrant_store = QdrantMemoryStore()
 

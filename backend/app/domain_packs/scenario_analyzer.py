@@ -100,7 +100,7 @@ class DynamicScenarioAnalyzer:
                 "plan": "PLAN B: Proactive Enterprise Outreach + Dedicated SLA Credits & High-Availability Hotfix",
                 "risk": "Low / Balanced",
                 "resource_req": "$25k SLA credits & dev sprint",
-                "estimated_impact": "Prevents 95%+ renewal churn, preserves enterprise goodwill, and restores full platform uptime",
+                "estimated_impact": "Estimated to meaningfully reduce renewal churn risk, preserve enterprise goodwill, and restore full platform uptime (percentage is NOT scientifically measured - directional estimate only)",
                 "time_to_execute": "24 hours",
                 "assumptions": "Assumes transparent status communication converts incident into customer trust-building opportunity"
             }
@@ -128,7 +128,7 @@ class DynamicScenarioAnalyzer:
                 "plan": "PLAN B: Move Upmarket to High-ACV Enterprise Tier + Proprietary AI Moat",
                 "risk": "Moderate (Balanced Moat)",
                 "resource_req": "$45k focused roadmap sprint",
-                "estimated_impact": "Increases net retention to >115% and insulates business from low-end free competitors",
+                "estimated_impact": "Directional estimate: expected to strengthen net retention and insulate the business from low-end free competitors (not a measured figure)",
                 "time_to_execute": "21 days",
                 "assumptions": "Assumes enterprise buyers prioritize security, SLAs, and deep workflows over free entry-level tools"
             }

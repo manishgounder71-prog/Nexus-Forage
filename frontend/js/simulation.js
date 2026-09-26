@@ -107,9 +107,10 @@ class SimulationEngine {
         clearInterval(interval);
         this.isSimulating = false;
         this.render();
+        const winner = this.getPlansForScenario().find(p => p.recommended) || this.getPlansForScenario()[1];
         if (runBtn) {
           runBtn.classList.remove('active-sim');
-          runBtn.innerHTML = '<i class="fa-solid fa-check"></i> <span>SIMULATION CONVERGED (PLAN B OPTIMAL)</span>';
+          runBtn.innerHTML = `<i class="fa-solid fa-check"></i> <span>SIMULATION CONVERGED (${winner.id} ${winner.success}%)</span>`;
         }
         if (window.nexusAudio) window.nexusAudio.playConsensus();
       }
@@ -151,7 +152,7 @@ class SimulationEngine {
           match: 'Matches 3 successful past missions (VEC_9104)',
           recommended: true,
           explanation: 'Optimal containment strategy. Isolates compromised SCADA nodes on substations 04 & 09 while deploying encrypted microgrid power loops and offline signed RTU keys.',
-          pros: ['Zero blackout propagation to municipal grid', 'Physical air-gap completely neutralizes malware', '94%+ success rate across 10,000 iterations'],
+          pros: ['Zero blackout propagation to municipal grid', 'Physical air-gap completely neutralizes malware', 'High projected success across 10,000 iterations'],
           cons: ['Requires 45 min deployment window']
         },
         {
@@ -540,7 +541,7 @@ class SimulationEngine {
 
         ${plan.recommended ? `
           <div class="sim-winner-ribbon">
-            <i class="fa-solid fa-crown"></i> 94% MONTE-CARLO WINNER • ADOPTED BY PARLIAMENT
+            <i class="fa-solid fa-crown"></i> ${plan.success}% MONTE-CARLO WINNER • ADOPTED BY PARLIAMENT
           </div>
         ` : ''}
 

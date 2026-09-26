@@ -1,8 +1,10 @@
 import asyncio
+import time
 import uuid
 import datetime
 from typing import Dict, List, Any, Callable, Optional
 from app.schemas.mission_schemas import MissionAnalysisOutput
+from app.core.config import settings
 from app.domain_packs.detector import domain_detector
 from app.domain_packs.registry import domain_pack_registry
 from app.domain_packs.capability_extractor import capability_extractor
@@ -19,6 +21,23 @@ class MasterMissionEngine:
     def __init__(self):
         self.active_missions: Dict[str, Dict[str, Any]] = {}
         self.mission_event_logs: Dict[str, List[Dict[str, Any]]] = {}
+
+    @staticmethod
+    def _pace(seconds: float) -> float:
+        """Cinematic sleeps are applied ONLY in demo mode; production runs without them."""
+        return seconds if bool(getattr(settings, "DEMO_PACING", True)) else 0.0
+
+    @staticmethod
+    def _derive_urgency(confidence: float, is_hybrid: bool) -> float:
+        """Heuristic urgency derived (never invented) from measured detection confidence.
+
+        No business-impact telemetry exists at ingestion time, so urgency is an explicit
+        derived estimate: higher-confidence detections and hybrid scope raise it.
+        """
+        base = 0.5 + (float(confidence) * 0.4)
+        if is_hybrid:
+            base += 0.1
+        return round(min(base, 0.97), 2)
 
     async def execute_mission_pipeline(
         self,
@@ -49,6 +68,19 @@ class MasterMissionEngine:
             self.active_missions[mission_id] = {"organization_id": organization_id}
 
         seq = 0
+        # Real wall-clock latency instrumentation per pipeline stage (Pillar 06).
+        t_marks: Dict[str, float] = {}
+
+        def mark(stage: str):
+            t_marks[stage] = time.perf_counter()
+
+        def stage_ms(a: str, b: str) -> float:
+            if a not in t_marks or b not in t_marks:
+                return 0.0
+            return round((t_marks[b] - t_marks[a]) * 1000.0, 1)
+
+        start_wall = time.perf_counter()
+        mark("start")
 
         async def emit(event_type: str, stage: str, message: str, payload: Dict[str, Any] = None):
             nonlocal seq
@@ -71,7 +103,7 @@ class MasterMissionEngine:
 
         # 1. Mission Input
         await emit("MISSION_CREATED", "MISSION_INPUT", f"MISSION RECEIVED: '{raw_prompt}'")
-        await asyncio.sleep(0.3)
+        await asyncio.sleep(self._pace(0.3))
 
         # 2. Domain Detection
         detection = domain_detector.detect_domain(raw_prompt)
@@ -93,7 +125,8 @@ class MasterMissionEngine:
             "secondary_domains": secondary_domains,
             "reasoning_summary": reasoning_summary
         })
-        await asyncio.sleep(0.3)
+        await asyncio.sleep(self._pace(0.3))
+        mark("detection")
 
         # 3. Domain Pack Selection
         await emit("DOMAIN_PACK_SELECTED", "DOMAIN_SELECTION", f"Active Domain Pack Loaded: {pack.icon} {pack.display_name}", {
@@ -103,7 +136,7 @@ class MasterMissionEngine:
             "icon": pack.icon,
             "category": pack.category
         })
-        await asyncio.sleep(0.3)
+        await asyncio.sleep(self._pace(0.3))
 
         # 4. Hybrid Mission Handling
         if is_hybrid and secondary_domains:
@@ -114,13 +147,13 @@ class MasterMissionEngine:
                 "merged_capabilities": required_capabilities,
                 "coordination_directive": f"Merging capabilities across {pack.display_name} and {sec_pack.display_name}."
             })
-            await asyncio.sleep(0.3)
+            await asyncio.sleep(self._pace(0.3))
 
         # 5. Capability Extraction
         await emit("CAPABILITIES_EXTRACTED", "CAPABILITY_EXTRACTION", f"Identified {len(required_capabilities)} required core capabilities for mission.", {
             "capabilities": required_capabilities
         })
-        await asyncio.sleep(0.3)
+        await asyncio.sleep(self._pace(0.3))
 
         # Structured Mission Analysis Schema
         title = raw_prompt.strip()
@@ -138,13 +171,16 @@ class MasterMissionEngine:
             domain_pack_icon=pack.icon,
             reasoning_summary=reasoning_summary,
             severity="CRITICAL",
-            urgency=0.96,
+            urgency=self._derive_urgency(confidence, is_hybrid),
             deadline_hours=24,
             constraints=["Preserve critical service integrity", "Minimize downstream financial/operational loss", "Mandatory human sign-off on destructive actions"],
             required_capabilities=required_capabilities
         )
-        await emit("MISSION_ANALYZED", "ANALYSIS", f"Mission Profile Generated: {analysis_output.mission_title}", analysis_output.model_dump())
-        await asyncio.sleep(0.3)
+        analysis_payload = analysis_output.model_dump()
+        analysis_payload["urgency_source"] = "derived_heuristic (no business-impact telemetry at ingestion)"
+        await emit("MISSION_ANALYZED", "ANALYSIS", f"Mission Profile Generated: {analysis_output.mission_title}", analysis_payload)
+        await asyncio.sleep(self._pace(0.3))
+        mark("analysis")
 
         # 6. Qdrant Domain & Cross-Domain Memory Retrieval
         mem_context = self._safe_memory_retrieval(raw_prompt, organization_id=organization_id)
@@ -152,15 +188,21 @@ class MasterMissionEngine:
         # Domain-aligned similar historical incidents from Qdrant vector memory
         similar_incidents = self._get_domain_similar_incidents(primary_domain, raw_prompt, organization_id=organization_id)
         historical_lessons = self._get_domain_historical_lessons(primary_domain, raw_prompt, organization_id=organization_id)
-        top_similarity = similar_incidents[0]["similarity"] if similar_incidents else "94%"
+        top_similarity = similar_incidents[0]["similarity"] if similar_incidents else None
 
-        await emit("MEMORY_RETRIEVED", "MEMORY", f"Qdrant retrieved {mem_context['total_context_nodes']} memory vectors with {top_similarity} domain match.", {
+        if similar_incidents or historical_lessons:
+            mem_message = f"Qdrant retrieved {mem_context['total_context_nodes']} memory vectors with {top_similarity} domain match."
+        else:
+            mem_message = f"Qdrant retrieved {mem_context['total_context_nodes']} memory vectors. No high-confidence historical matches found."
+
+        await emit("MEMORY_RETRIEVED", "MEMORY", mem_message, {
             "primary_domain": primary_domain,
             "similar_incidents": similar_incidents,
             "historical_lessons": historical_lessons,
             "raw_context": mem_context
         })
-        await asyncio.sleep(0.3)
+        await asyncio.sleep(self._pace(0.3))
+        mark("memory")
 
         # Cross-Domain Learning Memory Event
         if secondary_domains and (is_hybrid or len(secondary_domains) > 0):
@@ -168,14 +210,14 @@ class MasterMissionEngine:
                 "source_domain": secondary_domains[0],
                 "transferable_principle": "Independent dependency analysis should precede rapid recovery switchovers."
             })
-            await asyncio.sleep(0.2)
+            await asyncio.sleep(self._pace(0.2))
 
         # 7. Adaptive Organization Formation
         await emit("AGENT_ORGANIZATION_FORMING", "ORGANIZATION", f"Organization Architect scoring agents for {len(required_capabilities)} capabilities...", {
             "required_capabilities": required_capabilities,
             "domain": primary_domain
         })
-        await asyncio.sleep(0.3)
+        await asyncio.sleep(self._pace(0.3))
 
         selected_team = adaptive_org_engine.form_organization(
             required_capabilities=required_capabilities,
@@ -196,7 +238,7 @@ class MasterMissionEngine:
             "agent_count": len(selected_team),
             "roster": [{"name": s.agent_name, "role": s.assigned_role, "score": s.selection_score} for s in selected_team]
         })
-        await asyncio.sleep(0.3)
+        await asyncio.sleep(self._pace(0.3))
 
         # 8. Domain-Specific Task DAG Generation & Parallel Execution
         task_templates = pack.generate_workflow(raw_prompt, team_data)
@@ -234,29 +276,32 @@ class MasterMissionEngine:
             "total_tasks": len(dag.nodes),
             "domain": primary_domain
         })
-        await asyncio.sleep(0.3)
+        await asyncio.sleep(self._pace(0.3))
 
         # Execute Parallel DAG
         async def run_agent_node(node):
             agent = agent_registry.get_agent_by_id(node.agent_id) or agent_registry.get_all_agents()[0]
             await emit("AGENT_STARTED", "AGENT_EXECUTION", f"[{agent.name}] running task '{node.name}'.", {"task_id": node.task_id, "agent_name": agent.name})
-            
-            # Send inter-agent message
+
+            res = await agent.execute_task(node.name, {
+                "prompt": raw_prompt,
+                "domain": primary_domain,
+                "organization_id": organization_id,
+                "memory_context": mem_context,
+                "connector_tools": self._get_connector_tools(organization_id),
+            })
+
+            # Inter-agent evidence message: confidence comes from the REAL execution
+            # result rather than a hardcoded constant.
+            msg_confidence = res.get("confidence") if isinstance(res.get("confidence"), (int, float)) else 0.5
             communicator.send_message(
                 from_agent=agent.agent_id,
                 to_agent="commander_01",
                 mission_id=mission_id,
                 message_type="EVIDENCE",
-                content={"finding": f"Completed capability analysis for {node.name}"},
-                confidence=0.94
+                content={"finding": f"Completed capability analysis for {node.name}", "evidence_refs": res.get("evidence_refs", [])},
+                confidence=min(max(float(msg_confidence), 0.0), 1.0)
             )
-            
-            res = await agent.execute_task(node.name, {
-                "prompt": raw_prompt,
-                "domain": primary_domain,
-                "organization_id": organization_id,
-                "connector_tools": self._get_connector_tools(organization_id),
-            })
             await emit("AGENT_TASK_COMPLETED", "AGENT_EXECUTION", f"[{agent.name}] completed task '{node.name}'.", res)
             return res
 
@@ -268,57 +313,72 @@ class MasterMissionEngine:
             })
 
         dag_results = await dag.execute_dag(run_agent_node, dag_event_cb)
-        await asyncio.sleep(0.3)
+        await asyncio.sleep(self._pace(0.3))
+        mark("dag")
 
         # 9. Disagreement Detection
         disagreement_info = self._get_domain_disagreement(primary_domain, raw_prompt)
         await emit("AGENT_DISAGREEMENT", "DISAGREEMENT", f"⚠ AGENT DISAGREEMENT DETECTED: {disagreement_info['topic']}", disagreement_info)
-        await asyncio.sleep(0.3)
+        await asyncio.sleep(self._pace(0.3))
 
-        # 10. Agent Parliament Deliberation
+        # 10-12. Parliament Deliberation, Red-Team Audit and Monte-Carlo Simulation are
+        # mutually independent -> executed concurrently (asyncio.gather). CPU-bound sync
+        # stages run in the default executor so the event loop stays responsive (Pillar 06).
         participating = [agent_registry.get_agent_by_id(s.agent_id) for s in selected_team if agent_registry.get_agent_by_id(s.agent_id)]
-        
+
         async def debate_cb(ev_type, data):
             await emit(ev_type, "PARLIAMENT", f"Parliament event: {ev_type}", data)
 
         motion_text = f"Which response strategy should be executed for {pack.display_name}: '{analysis_output.mission_title}'?"
-        consensus = await parliament_engine.run_deliberation(
-            mission_id=mission_id,
-            motion_text=motion_text,
-            participating_agents=participating,
-            event_callback=debate_cb,
-            domain_id=primary_domain
-        )
-        await asyncio.sleep(0.3)
 
-        # 11. Red Team Stress Test (Plan v1 -> v2)
-        red_team_info = self._get_domain_red_team_audit(primary_domain, raw_prompt)
-        await emit("RED_TEAM_STARTED", "RED_TEAM", f"Adversarial Red Team stress-testing strategy for {pack.display_name}...", red_team_info)
-        await asyncio.sleep(0.3)
-        await emit("RED_TEAM_COMPLETED", "RED_TEAM", f"Red Team audit complete: {red_team_info.get('selected_strategy', 'strategy')} hardened under adversarial stress.", {
-            "summary": "Adversarial audit finished. No exploitable residual risk on the selected strategy.",
+        await emit("RED_TEAM_STARTED", "RED_TEAM", f"Adversarial Red Team stress-testing strategy for {pack.display_name}...", {})
+
+        consensus, red_team_info, sim_results = await asyncio.gather(
+            parliament_engine.run_deliberation(
+                mission_id=mission_id,
+                motion_text=motion_text,
+                participating_agents=participating,
+                event_callback=debate_cb,
+                domain_id=primary_domain
+            ),
+            asyncio.to_thread(self._get_domain_red_team_audit, primary_domain, raw_prompt),
+            asyncio.to_thread(self._safe_simulation, raw_prompt, analysis_output.mission_type, primary_domain),
+        )
+        mark("parliament")
+        await asyncio.sleep(self._pace(0.3))
+
+        await emit("RED_TEAM_COMPLETED", "RED_TEAM", f"Red Team audit complete: {red_team_info.get('selected_strategy', 'strategy')} assessed under adversarial stress.", {
+            "summary": "Adversarial audit finished. Findings are parametrized estimates and require live adversarial verification before residual risk is declared.",
             "selected_strategy": red_team_info.get("selected_strategy"),
             "risk_after": red_team_info.get("risk_after"),
             "hardening": red_team_info.get("hardening"),
         })
 
-        # 12. Strategy Simulation Engine Comparison
-        sim_results = self._safe_simulation(raw_prompt, analysis_output.mission_type, primary_domain)
         winner_strategy = sim_results[1] if len(sim_results) > 1 else sim_results[0]
         await emit("SIMULATION_COMPLETED", "SIMULATION", f"Monte-Carlo Strategy Comparison calculated. {winner_strategy['id']} WINS ({int(winner_strategy['success_likelihood']*100)}% Success).", {"strategies": sim_results})
-        await asyncio.sleep(0.3)
+        await asyncio.sleep(self._pace(0.3))
+        mark("simulation")
 
-        # 13. Executive Mission Command Report
+        # 13. Executive Mission Command Report (evidence-driven contract, Pillar 02/03)
         agent_findings = list(dag_results["results"].values()) if "results" in dag_results else []
+        evidence = {
+            "mem_context": mem_context,
+            "similar_incidents": similar_incidents,
+            "historical_lessons": historical_lessons,
+            "red_team_info": red_team_info,
+            "disagreement_info": disagreement_info,
+        }
         executive_report = pack.generate_executive_report(
             prompt=raw_prompt,
             consensus=consensus,
             selected_strategy=consensus["selected_strategy"],
             simulations=sim_results,
-            agent_findings=agent_findings
+            agent_findings=agent_findings,
+            evidence=evidence
         )
         await emit("EXECUTIVE_REPORT", "REPORT", f"Executive Mission Command Report generated for {pack.display_name}.", executive_report)
-        await asyncio.sleep(0.3)
+        await asyncio.sleep(self._pace(0.3))
+        mark("report")
 
         # 14. Reflection Engine & Domain Memory Update
         memory_writer.write_memory(
@@ -367,7 +427,21 @@ class MasterMissionEngine:
             "executive_report": executive_report,
             "tasks_executed": dag_results["completed_tasks"],
             "simulations": sim_results,
-            "events_count": len(self.mission_event_logs[mission_id])
+            "events_count": len(self.mission_event_logs[mission_id]),
+            "pipeline_stats": {
+                "execution_time_ms": round((time.perf_counter() - start_wall) * 1000.0, 1),
+                "stage_markers_ms": {
+                    "detection": stage_ms("start", "detection"),
+                    "analysis": stage_ms("detection", "analysis"),
+                    "memory_retrieval": stage_ms("analysis", "memory"),
+                    "organization_form": stage_ms("memory", "dag"),
+                    "dag_execution": stage_ms("dag", "parliament"),
+                    "deliberation_redteam_simulation_parallel": stage_ms("parliament", "simulation"),
+                    "report_generation": stage_ms("simulation", "report"),
+                },
+                "demo_pacing_enabled": bool(getattr(settings, "DEMO_PACING", True)),
+                "retrieval": mem_context.get("retrieval_stats", {}),
+            },
         }
         self.active_missions[mission_id] = summary
 
@@ -461,8 +535,8 @@ class MasterMissionEngine:
                 "estimated_time_mins": 60,
                 "cost_usd": 5000,
                 "recommended": False,
-                "methodology": "HEURISTIC_SIMULATION",
-                "explanation": "Fastest initial response but carries elevated risk of collateral disruption."
+                "methodology": "OFFLINE_HEURISTIC_ESTIMATE",
+                "explanation": "Heuristic estimate only (simulation backend unavailable). Fastest initial response but carries elevated risk of collateral disruption."
             },
             {
                 "id": "PLAN_B",
@@ -472,8 +546,8 @@ class MasterMissionEngine:
                 "estimated_time_mins": 90,
                 "cost_usd": 12000,
                 "recommended": True,
-                "methodology": "HISTORICAL_COMPARISON",
-                "explanation": "Optimal containment and recovery strategy with best win-probability."
+                "methodology": "OFFLINE_HEURISTIC_ESTIMATE",
+                "explanation": "Heuristic estimate only (simulation backend unavailable). Optimal containment and recovery strategy with best estimated win-probability."
             },
             {
                 "id": "PLAN_C",
@@ -483,13 +557,18 @@ class MasterMissionEngine:
                 "estimated_time_mins": 120,
                 "cost_usd": 20000,
                 "recommended": False,
-                "methodology": "AGENT_ESTIMATION",
-                "explanation": "Comprehensive but operationally expensive recovery path."
+                "methodology": "OFFLINE_HEURISTIC_ESTIMATE",
+                "explanation": "Heuristic estimate only (simulation backend unavailable). Comprehensive but operationally expensive recovery path."
             }
         ]
 
     def _get_domain_similar_incidents(self, domain: str, prompt: str, organization_id: Optional[str] = None) -> List[Dict[str, Any]]:
-        """Retrieves genuine semantic vector matches from Qdrant memory store."""
+        """Retrieves genuine semantic vector matches from Qdrant memory store.
+
+        Returns an empty list (never synthetic incidents) when no points are
+        found — the caller then reports "no high-confidence historical matches"
+        rather than presenting fabricated precedent as evidence.
+        """
         from app.memory.qdrant_client import qdrant_store
         try:
             points = qdrant_store.query_memory("all", prompt, limit=3, organization_id=organization_id)
@@ -497,26 +576,22 @@ class MasterMissionEngine:
                 return [
                     {
                         "name": p.get("title") or p.get("content", "")[:45],
-                        "similarity": f"{int((p.get('similarity_score', 0.90)) * 100)}%",
+                        "similarity": f"{int((p.get('similarity_score', 0.0)) * 100)}%",
                         "domain": p.get("domain", domain),
-                        "tags": p.get("tags", [])
+                        "tags": p.get("tags", []),
+                        "ref_id": p.get("memory_id")
                     }
                     for p in points
                 ]
         except Exception as e:
             print(f"[MissionEngine] Qdrant similarity search error: {e}")
-
-        # Dynamic fallback based on prompt extraction
-        words = [w.title() for w in prompt.split() if len(w) > 4 and w.lower() not in {"nexus", "crisis", "alert", "emergency"}]
-        topic = " ".join(words[:2]) if words else "System Incident"
-        return [
-            {"name": f"Historical Incident: {topic} Containment", "similarity": "94%", "domain": domain},
-            {"name": "Multi-Region Decoupled Failover 2024", "similarity": "91%", "domain": domain},
-            {"name": "Canary Ingress Health Verification", "similarity": "87%", "domain": domain}
-        ]
+        return []
 
     def _get_domain_historical_lessons(self, domain: str, prompt: str, organization_id: Optional[str] = None) -> List[Dict[str, Any]]:
-        """Retrieves actionable lessons learned from Qdrant decision and reflection vectors."""
+        """Retrieves lessons learned from Qdrant decision and reflection vectors.
+
+        Returns an empty list when nothing is found; never fabricates precedent.
+        """
         from app.memory.qdrant_client import qdrant_store
         try:
             points = qdrant_store.query_memory("decision_memory", prompt, limit=2, organization_id=organization_id)
@@ -526,15 +601,15 @@ class MasterMissionEngine:
                 return [
                     {
                         "incident": p.get("title") or "Historical Mission",
-                        "similarity": f"{int((p.get('similarity_score', 0.92)) * 100)}%",
-                        "lesson": p.get("content", "Enforce decoupled failover loops before service termination.")
+                        "similarity": f"{int((p.get('similarity_score', 0.0)) * 100)}%",
+                        "lesson": p.get("content", "")[:200],
+                        "ref_id": p.get("memory_id")
                     }
                     for p in points
                 ]
         except Exception as e:
             print(f"[MissionEngine] Qdrant lesson recall error: {e}")
-
-        return [{"incident": "Historical Precedent", "similarity": "93%", "lesson": "Decouple dependent sub-services before triggering automated failover."}]
+        return []
 
     def _get_domain_disagreement(self, domain: str, prompt: str) -> Dict[str, Any]:
         """Generates dynamic inter-agent disagreement analysis using the reasoning engine."""

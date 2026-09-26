@@ -69,7 +69,13 @@ class BaseDomainPack(ABC):
         consensus: Dict[str, Any],
         selected_strategy: str,
         simulations: List[Dict[str, Any]],
-        agent_findings: List[Dict[str, Any]]
+        agent_findings: List[Dict[str, Any]],
+        evidence: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
-        """Builds comprehensive standardized Domain Command Report."""
+        """Builds comprehensive standardized Domain Command Report.
+
+        The report MUST be sourced from pipeline evidence (consensus, simulations,
+        agent findings, retrieved memory). Fields with no verifiable source are
+        explicitly marked as pending human validation - never invented.
+        """
         pass

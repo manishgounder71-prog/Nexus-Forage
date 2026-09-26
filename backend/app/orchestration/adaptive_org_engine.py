@@ -10,6 +10,19 @@ class AdaptiveOrganizationEngine:
     Calculates expertise match, reputation score, speed, and cost efficiency.
     Provides concise explainability for every recruited agent.
     """
+    def _selection_score(self, agent, match_score: float, domain_pack: BaseDomainPack) -> float:
+        """Capability-match scoring: higher reputation/speed and LOWER cost_weight win.
+
+        `cost_weight` is a cost factor — a cheaper agent (lower weight) is preferred
+        at equal expertise, so it divides rather than multiplies the score.
+        """
+        cost_efficiency = 1.0 / max(agent.cost_weight, 0.01)
+        domain_bonus = 1.05 if domain_pack.domain_id.lower() in agent.specialization.lower() else 1.0
+        return round(
+            match_score * agent.reputation_score * agent.speed_score * cost_efficiency * domain_bonus,
+            4
+        )
+
     def form_organization(
         self,
         required_capabilities: List[str],
@@ -28,7 +41,7 @@ class AdaptiveOrganizationEngine:
                 agent_id=commander.agent_id,
                 agent_name=commander.name,
                 division=commander.division,
-                selection_score=0.99,
+                selection_score=self._selection_score(commander, 1.0, domain_pack),
                 assigned_role="Mission Commander & Orchestration Lead"
             ))
             recruited_agent_ids.add(commander.agent_id)
@@ -42,14 +55,8 @@ class AdaptiveOrganizationEngine:
                 # Direct match score: 1.0 for direct capability, 0.45 fallback
                 match_score = 1.0 if req_cap in agent.capabilities else 0.45
 
-                # Weight domain alignment bonus if agent's division/specialization matches
-                domain_bonus = 1.05 if domain_pack.domain_id.lower() in agent.specialization.lower() else 1.0
-
-                # Adaptive Scoring Formula: Match * Reputation * Speed * Cost * Bonus
-                score = round(
-                    match_score * agent.reputation_score * agent.speed_score * agent.cost_weight * domain_bonus,
-                    4
-                )
+                # Adaptive Scoring Formula: Match * Reputation * Speed * Cost-Efficiency * Bonus
+                score = self._selection_score(agent, match_score, domain_pack)
 
                 if score > best_score and agent.agent_id not in recruited_agent_ids:
                     best_score = score
@@ -74,7 +81,7 @@ class AdaptiveOrganizationEngine:
                     agent_id=rt_agent.agent_id,
                     agent_name=rt_agent.name,
                     division=rt_agent.division,
-                    selection_score=0.96,
+                    selection_score=self._selection_score(rt_agent, 1.0, domain_pack),
                     assigned_role="Adversarial Red Team Stress-Test Auditor"
                 ))
                 recruited_agent_ids.add(rt_agent.agent_id)

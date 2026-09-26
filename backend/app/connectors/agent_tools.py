@@ -163,9 +163,20 @@ class ConnectorToolRegistry:
         return {"proposal_id": f"prop_{connector_id[-6:]}_{action[:4]}", "proposal": proposal}
 
     async def _execute_change(self, org_id, connector_id, params):
-        # Execution is recorded as an auditable, idempotent action.
-        return {"status": "executed", "connector_id": connector_id,
-                "action": params.get("action", "change"), "detail": params.get("detail", "")}
+        """Records an approval-gated change request.
+
+        This tool does NOT perform a real mutation of a connected system; no
+        operational change is applied. The result is recorded truthfully so the
+        audit trail never claims an execution that did not happen.
+        """
+        return {
+            "status": "recorded",
+            "executed": False,
+            "connector_id": connector_id,
+            "action": params.get("action", "change"),
+            "detail": "Change request recorded and logged. No operational execution performed - the connected system was not modified.",
+            "requires_live_connector": True
+        }
 
 
 connector_tool_registry = ConnectorToolRegistry()

@@ -1,6 +1,7 @@
 import asyncio
 import datetime
 from typing import Dict, List, Any, Callable, Optional
+from app.core.config import settings
 from app.domain_packs.registry import domain_pack_registry
 
 DEBATE_PHASES = [
@@ -46,7 +47,9 @@ class AgentParliamentEngine:
         speeches = delib.get("phase_speeches", {})
 
         for phase in DEBATE_PHASES:
-            await asyncio.sleep(0.35)
+            # Demo pacing only; production skips the cinematic phase sleeps (Pillar 06).
+            if bool(getattr(settings, "DEMO_PACING", True)):
+                await asyncio.sleep(0.35)
             # Cycle through participating agents as phase speakers
             speaker_idx = (DEBATE_PHASES.index(phase)) % max(1, len(participating_agents))
             speaker = participating_agents[speaker_idx] if participating_agents else None

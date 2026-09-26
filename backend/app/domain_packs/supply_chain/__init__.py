@@ -1,4 +1,4 @@
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from app.domain_packs.base import BaseDomainPack, DomainRiskFactor, WorkflowTaskTemplate
 from app.domain_packs.supply_chain.config import DOMAIN_ID, DISPLAY_NAME, DESCRIPTION, ICON, DEFAULT_CAPABILITIES
 from app.domain_packs.supply_chain.agents import get_supply_chain_agents
@@ -33,50 +33,28 @@ class SupplyChainPack(BaseDomainPack):
         return SupplyChainReportSchema.model_json_schema()
 
     def get_simulation_strategies(self, mission_context: Dict[str, Any]) -> List[Dict[str, Any]]:
-        return [
-            {
-                "id": "PLAN_A",
-                "title": "Plan A: Emergency Heavy Truck Fleet Dispatch",
-                "success_likelihood": 0.68,
-                "risk_score": 0.45,
-                "estimated_time_mins": 60,
-                "cost_usd": 12000,
-                "recommended": False,
-                "methodology": "HEURISTIC_SIMULATION",
-                "explanation": "Requires 400+ trucks on congested highways, causing secondary logistics bottlenecks."
-            },
-            {
-                "id": "PLAN_B",
-                "title": "Plan B: Container Vessel Rerouting via Secondary Rail Hubs",
-                "success_likelihood": 0.91,
-                "risk_score": 0.09,
-                "estimated_time_mins": 120,
-                "cost_usd": 14500,
-                "recommended": True,
-                "methodology": "HISTORICAL_COMPARISON",
-                "explanation": "Optimal throughput. Reroutes inland freight via automated rail junctions, avoiding port strike choke points."
-            },
-            {
-                "id": "PLAN_C",
-                "title": "Plan C: Air Freight Emergency Cargo Airlift",
-                "success_likelihood": 0.84,
-                "risk_score": 0.22,
-                "estimated_time_mins": 90,
-                "cost_usd": 45000,
-                "recommended": False,
-                "methodology": "AGENT_ESTIMATION",
-                "explanation": "Rapid delivery for critical goods but extremely cost prohibitive for high-volume cargo."
-            }
-        ]
+        """Stochastic Monte-Carlo strategy comparison computed from the shared engine."""
+        from app.orchestration.simulation_engine import simulation_engine
+        return simulation_engine.simulate_strategies(
+            mission_type="supply_chain",
+            domain_id=DOMAIN_ID,
+            mission_context=mission_context,
+        )
 
     def get_debate_template(self, prompt: str) -> Dict[str, Any]:
+        from app.agents.llm_reasoning import llm_reasoning_engine
+        delib = llm_reasoning_engine.generate_parliament_deliberation_sync(prompt, [])
+        score = delib.get("consensus_score") or 0.90
         return {
             "motion": f"Which logistics recovery strategy should be executed for supply disruption: '{prompt[:60]}'?",
-            "selected_strategy": "PLAN_B_INLAND_RAIL_CORRIDOR_REROUTING",
-            "consensus_score": 0.91,
-            "reasoning_summary": "Plan B selected: Reroute container freight via automated inland rail junctions, bypassing port strike choke points and preserving cold-chain refrigerated cargo.",
-            "supporting_agents": ["Supply Chain Commander", "Supplier Analysis Agent", "Alternative Sourcing Agent", "Cost Optimization Agent"],
-            "dissenting_agents": ["Operational Impact Agent (favored air cargo airlift for batch 1 to prevent factory line stop)"]
+            "selected_strategy": delib.get("selected_strategy") or "PLAN_B_INLAND_RAIL_CORRIDOR_REROUTING",
+            "consensus_score": round(float(score), 3),
+            "reasoning_summary": delib.get("reasoning_summary") or "Consensus reached via parametric deliberation. No fabricated figures.",
+            "supporting_agents": delib.get("supporting_agents") or [],
+            "dissenting_agents": delib.get("dissenting_agents") or [],
+            "provider": delib.get("provider") or "Dynamic Parametric Engine",
+            "source": "prompt_parametric_estimate",
+            "is_estimate": True,
         }
 
     def get_sample_scenarios(self) -> List[Dict[str, Any]]:
@@ -98,6 +76,7 @@ class SupplyChainPack(BaseDomainPack):
         consensus: Dict[str, Any],
         selected_strategy: str,
         simulations: List[Dict[str, Any]],
-        agent_findings: List[Dict[str, Any]]
+        agent_findings: List[Dict[str, Any]],
+        evidence: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
-        return build_supply_chain_executive_report(prompt, consensus, selected_strategy, simulations, agent_findings)
+        return build_supply_chain_executive_report(prompt, consensus, selected_strategy, simulations, agent_findings, evidence)

@@ -145,7 +145,7 @@ class CorrelationEngine:
             "event_types": sorted(types),
             "connector_types": sorted(connector_types),
             "related_services": sorted({s for e in group for s in e.get("related_services") or []}),
-            "event_refs": ["memory://" + (e.get("dedupe_hash") or "") for e in group],
+            "event_refs": [e.get("dedupe_hash") or e.get("id") or "" for e in group if e.get("dedupe_hash") or e.get("id")],
             "source_events": group,
             "meta": {
                 "evidence_count": len(group),

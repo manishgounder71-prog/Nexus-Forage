@@ -1,4 +1,4 @@
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from app.domain_packs.base import BaseDomainPack, DomainRiskFactor, WorkflowTaskTemplate
 from app.domain_packs.university_operations.config import DOMAIN_ID, DISPLAY_NAME, DESCRIPTION, ICON, DEFAULT_CAPABILITIES
 from app.domain_packs.university_operations.agents import get_university_operations_agents
@@ -33,50 +33,28 @@ class UniversityOperationsPack(BaseDomainPack):
         return UniversityOperationsReportSchema.model_json_schema()
 
     def get_simulation_strategies(self, mission_context: Dict[str, Any]) -> List[Dict[str, Any]]:
-        return [
-            {
-                "id": "PLAN_A",
-                "title": "Plan A: Force Instant Server Reboot & Proceed on Schedule",
-                "success_likelihood": 0.65,
-                "risk_score": 0.54,
-                "estimated_time_mins": 30,
-                "cost_usd": 1200,
-                "recommended": False,
-                "methodology": "HEURISTIC_SIMULATION",
-                "explanation": "High risk of immediate secondary crash during 9:00 AM synchronized login rush."
-            },
-            {
-                "id": "PLAN_B",
-                "title": "Plan B: Read-Only Mirror & Staggered 24-Hour Exam Windows",
-                "success_likelihood": 0.93,
-                "risk_score": 0.08,
-                "estimated_time_mins": 90,
-                "cost_usd": 3800,
-                "recommended": True,
-                "methodology": "HISTORICAL_COMPARISON",
-                "explanation": "Optimal academic resilience. Matches historical 2024 university outage resolution with zero student penalty."
-            },
-            {
-                "id": "PLAN_C",
-                "title": "Plan C: Total Semester Exam Cancellation & Pro-Rata Grading",
-                "success_likelihood": 0.72,
-                "risk_score": 0.44,
-                "estimated_time_mins": 240,
-                "cost_usd": 15000,
-                "recommended": False,
-                "methodology": "AGENT_ESTIMATION",
-                "explanation": "Eliminates technical stress but causes extreme academic fairness complaints from graduating seniors."
-            }
-        ]
+        """Stochastic Monte-Carlo strategy comparison computed from the shared engine."""
+        from app.orchestration.simulation_engine import simulation_engine
+        return simulation_engine.simulate_strategies(
+            mission_type="university_operations",
+            domain_id=DOMAIN_ID,
+            mission_context=mission_context,
+        )
 
     def get_debate_template(self, prompt: str) -> Dict[str, Any]:
+        from app.agents.llm_reasoning import llm_reasoning_engine
+        delib = llm_reasoning_engine.generate_parliament_deliberation_sync(prompt, [])
+        score = delib.get("consensus_score") or 0.90
         return {
             "motion": f"Which contingency strategy should be executed for academic exam crisis: '{prompt[:60]}'?",
-            "selected_strategy": "PLAN_B_READ_ONLY_MIRROR_STAGGERED_EXAM",
-            "consensus_score": 0.93,
-            "reasoning_summary": "Plan B selected: Read-only mirror portal deployed for student authentication while chunked database snapshot restore executes in background, accompanied by a 24-hour staggered exam window.",
-            "supporting_agents": ["Academic Operations Commander", "Technical Recovery Agent", "Student Impact Agent", "University Communications Agent"],
-            "dissenting_agents": ["Academic Risk Agent (cautioned on take-home exam integrity)"]
+            "selected_strategy": delib.get("selected_strategy") or "PLAN_B_READ_ONLY_MIRROR_STAGGERED_EXAM",
+            "consensus_score": round(float(score), 3),
+            "reasoning_summary": delib.get("reasoning_summary") or "Consensus reached via parametric deliberation. No fabricated figures.",
+            "supporting_agents": delib.get("supporting_agents") or [],
+            "dissenting_agents": delib.get("dissenting_agents") or [],
+            "provider": delib.get("provider") or "Dynamic Parametric Engine",
+            "source": "prompt_parametric_estimate",
+            "is_estimate": True,
         }
 
     def get_sample_scenarios(self) -> List[Dict[str, Any]]:
@@ -98,6 +76,7 @@ class UniversityOperationsPack(BaseDomainPack):
         consensus: Dict[str, Any],
         selected_strategy: str,
         simulations: List[Dict[str, Any]],
-        agent_findings: List[Dict[str, Any]]
+        agent_findings: List[Dict[str, Any]],
+        evidence: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
-        return build_university_operations_executive_report(prompt, consensus, selected_strategy, simulations, agent_findings)
+        return build_university_operations_executive_report(prompt, consensus, selected_strategy, simulations, agent_findings, evidence)

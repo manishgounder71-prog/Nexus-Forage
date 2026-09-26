@@ -197,8 +197,8 @@ class MemoryGalaxyEngine {
       if (statsRes.ok) {
         const statsData = await statsRes.json();
         const cntEl = document.getElementById('qdrant-vectors-count');
-        if (cntEl && statsData.total_vectors_indexed) {
-          cntEl.innerText = Number(statsData.total_vectors_indexed + 14280).toLocaleString();
+        if (cntEl && typeof statsData.total_vectors_indexed === 'number') {
+          cntEl.innerText = Number(statsData.total_vectors_indexed).toLocaleString();
         }
       }
     } catch (e) {

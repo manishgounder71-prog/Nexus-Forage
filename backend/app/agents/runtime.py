@@ -6,6 +6,8 @@ from typing import Dict, Any, Optional, List
 from app.core.config import settings
 from app.agents.base import BaseAgent
 from app.agents.lyzr_client import LyzrClient, LyzrClientError
+from app.core.prompt_guard import sanitize_untrusted_input, build_grounding_system_prompt, apply_no_fabrication_directive
+from app.core.costing import usage_register, UsageRecord, estimate_tokens, truncate_tokens
 
 import time
 import logging
@@ -131,6 +133,24 @@ class LyzrAgentRuntimeAdapter(BaseAgent):
         start_time = datetime.datetime.now(datetime.timezone.utc)
         task_id = f"tsk_{uuid.uuid4().hex[:6]}"
         prompt = input_context.get("prompt", "")
+        safe_prompt = sanitize_untrusted_input(prompt)
+        clean_prompt = safe_prompt["raw_text"]
+
+        # Build grounded context string from real memory retrieval (when present)
+        grounding_text = ""
+        mem_ctx = input_context.get("memory_context") or {}
+        sources = []
+        excerpts = []
+        for key in ("relevant_missions", "historical_failures", "past_decisions", "dissent_warnings"):
+            for item in mem_ctx.get(key, []) or []:
+                sources.append(item.get("memory_id") or item.get("content", "")[:80])
+                excerpts.append(item.get("content", item.get("title", ""))[:300])
+        if excerpts:
+            grounding_text = truncate_tokens(
+                "\n".join(excerpts),
+                getattr(settings, "MAX_CONTEXT_TOKENS", 1200),
+            )
+        grounding_system_prompt = build_grounding_system_prompt(grounding_text) if grounding_text else None
 
         # --- Real Lyzr execution path ------------------------------------------
         if self.has_lyzr_key and not _force_local and _lyzr_breaker.allow_live():
@@ -139,7 +159,8 @@ class LyzrAgentRuntimeAdapter(BaseAgent):
                 try:
                     result = await self.lyzr_client.invoke_agent(
                         agent_id=agent_id,
-                        query=prompt or f"Execute the mission task '{task_name}' for the {self.division} division.",
+                        query=clean_prompt or f"Execute the mission task '{task_name}' for the {self.division} division.",
+                        context=grounding_system_prompt or None,
                     )
                     answer = (
                         result.get("answer")
@@ -170,9 +191,15 @@ class LyzrAgentRuntimeAdapter(BaseAgent):
                         "tools_invoked": result.get("tools") or self._determine_tools_used(task_name),
                         "reasoning_trace": str(llm_text)[:600],
                         "deliverable": str(llm_text)[:600] or f"Autonomous deliverable produced for '{task_name}' via Lyzr.",
+                        "evidence_refs": sources,
                         "execution_duration_ms": duration_ms,
                         "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
                         "provider": "lyzr",
+                        "guardrails": {
+                            "input_sanitized": True,
+                            "injection_signals": safe_prompt["suspicious_injection_signals"],
+                            "grounded_context_chars": len(grounding_text),
+                        },
                     }
                     _lyzr_breaker.record_success()
                     self.execution_history.append(output_payload)
@@ -185,25 +212,36 @@ class LyzrAgentRuntimeAdapter(BaseAgent):
                 _lyzr_breaker.record_failure()
 
         # --- Dynamic prompt-aware agent reasoning fallback -------------------
-        await asyncio.sleep(0.35)  # Realistic agent thinking latency
+        if bool(getattr(settings, "DEMO_PACING", True)):
+            await asyncio.sleep(0.35)  # Realistic agent thinking latency (demo pacing only)
 
         tools_used = self._determine_tools_used(task_name, prompt)
         
         # Extract specific target entity from prompt
-        words = [w for w in prompt.split() if len(w) > 4 and w.lower() not in {"nexus", "crisis", "alert", "emergency", "initiate"}]
+        words = [w for w in clean_prompt.split() if len(w) > 4 and w.lower() not in {"nexus", "crisis", "alert", "emergency", "initiate"}]
         focus_entity = words[0].title() if words else "Target Subsystem"
 
         thought_steps = [
             f"1. Context Ingestion: Loaded mission context for '{task_name}' on {focus_entity}.",
             f"2. Capability Matrix Alignment: Applied specialization '{self.specialization}' ({self.division} division).",
             f"3. Tool Invocations: Executed {', '.join(tools_used)} with zero-trust safety checks.",
-            f"4. Deliverable Verification: Validated recovery & failover parameters with confidence score."
+            f"4. Deliverable Verification: Validated recovery & failover parameters with heuristic confidence score."
         ]
 
         confidence = round(0.91 + (len(self.capabilities) * 0.012), 2)
         confidence = min(confidence, 0.98)
 
         duration_ms = int((datetime.datetime.now(datetime.timezone.utc) - start_time).total_seconds() * 1000) + 380
+
+        prompt_tokens = estimate_tokens(clean_prompt)
+        completion_tokens = 380
+        usage_register.record(UsageRecord(
+            model="local_deterministic",
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            source="local_runtime_simulated",
+            cached=False,
+        ))
 
         output_payload = {
             "task_id": task_id,
@@ -213,13 +251,26 @@ class LyzrAgentRuntimeAdapter(BaseAgent):
             "division": self.division,
             "specialization": self.specialization,
             "confidence": confidence,
-            "framework": "Lyzr Automata SDK (Solo Agent Runtime)",
+            "framework": "LOCAL_DETERMINISTIC_RUNTIME (no LLM invoked)",
+            "model": "none",
+            "simulated": True,
+            "evidence_refs": sources,
             "thought_chain": thought_steps,
-            "tools_invoked": tools_used,
-            "reasoning_trace": f"[{self.name}] Resolved task '{task_name}' for {focus_entity} utilizing {tools_used[0]}. Output verified with {int(confidence*100)}% certainty.",
-            "deliverable": f"Autonomous deliverable for '{task_name}': Isolated {focus_entity} threat vector and established verified failover redundancy.",
+            "reasoning_trace": f"[{self.name}] Deterministic offline reasoning for task '{task_name}' on {focus_entity}. No external evidence verified.",
+            "deliverable": f"[SIMULATED DELIVERABLE - generated offline, not from live inference] Proposed isolation of {focus_entity} threat surface with failover redundancy.",
             "execution_duration_ms": duration_ms,
-            "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat()
+            "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "provider": "local_deterministic",
+            "usage": {
+                "prompt_tokens": prompt_tokens,
+                "completion_tokens": completion_tokens,
+                "model": "local_deterministic",
+            },
+            "guardrails": {
+                "input_sanitized": True,
+                "injection_signals": safe_prompt["suspicious_injection_signals"],
+                "grounded_context_chars": len(grounding_text),
+            },
         }
 
         self.execution_history.append(output_payload)

@@ -5,6 +5,8 @@ import hashlib
 import httpx
 from typing import Dict, Any, Optional, List
 from app.core.config import settings
+from app.core.costing import usage_register, UsageRecord, estimate_tokens
+from app.core.prompt_guard import sanitize_untrusted_input
 
 logger = logging.getLogger("nexus_forge.omi_service")
 
@@ -31,6 +33,13 @@ class OmiVoiceIngestionService:
         self.api_url = settings.OMI_API_URL
         self.audio_sample_rate = 16000
         self.supported_formats = ["audio/wav", "audio/webm", "audio/ogg", "audio/mp4", "audio/mpeg"]
+        self._shared_httpx: Optional[httpx.AsyncClient] = None
+
+    def _client(self, timeout: float = 15.0) -> httpx.AsyncClient:
+        """Reused AsyncClient (no per-request session churn)."""
+        if self._shared_httpx is None or self._shared_httpx.is_closed:
+            self._shared_httpx = httpx.AsyncClient(timeout=timeout)
+        return self._shared_httpx
 
     @property
     def live(self) -> bool:
@@ -53,9 +62,11 @@ class OmiVoiceIngestionService:
         4. Otherwise performs multi-scenario acoustic decode based on audio payload characteristics.
         """
         provider = "Omi Voice API (SDK Adapter)"
+        verified = False
         if client_transcript and client_transcript.strip():
             transcript = client_transcript.strip()
             provider = "Omi Real-Time Microphone STT (Verbatim Capture)"
+            verified = True
         elif settings.GEMINI_API_KEY and len(audio_data) > 500 and not _force_local:
             try:
                 # Live Gemini audio transcription
@@ -63,6 +74,7 @@ class OmiVoiceIngestionService:
                 if gemini_transcript:
                     transcript = gemini_transcript
                     provider = "Omi Speech Engine (Gemini LLM Audio STT)"
+                    verified = True
                 else:
                     transcript = self._infer_transcription_from_audio(audio_data)
             except Exception as e:
@@ -71,7 +83,7 @@ class OmiVoiceIngestionService:
         else:
             transcript = self._infer_transcription_from_audio(audio_data)
 
-        base = self._build_transcription_response(transcript, provider=provider)
+        base = self._build_transcription_response(transcript, provider=provider, verified=verified)
 
         if self.live and not _force_local:
             try:
@@ -98,7 +110,7 @@ class OmiVoiceIngestionService:
                 ]
             }]
         }
-        async with httpx.AsyncClient(timeout=12.0) as client:
+        async with self._client(12.0) as client:
             resp = await client.post(url, json=payload, headers=headers)
             if resp.status_code == 200:
                 data = resp.json()
@@ -107,6 +119,12 @@ class OmiVoiceIngestionService:
                     parts = candidates[0].get("content", {}).get("parts", [])
                     text = parts[0].get("text", "").strip() if parts else ""
                     if text:
+                        usage_register.record(UsageRecord(
+                            model=model,
+                            prompt_tokens=estimate_tokens(str(payload)[:2000]),
+                            completion_tokens=estimate_tokens(text),
+                            source="omi_gemini_stt",
+                        ))
                         return text
         return None
 
@@ -115,17 +133,21 @@ class OmiVoiceIngestionService:
         Persists a transcribed crisis command as a new conversation in the user's Omi
         account via the Developer API, then writes a memory derived from its intent.
         Returns the created Omi resource IDs.
+
+        The transcript is treated as DATA (delimited + capped) before leaving the
+        system, and any injection-signal flags are attached to the response.
         """
+        safe = sanitize_untrusted_input(transcript_text)
         conversation = await self._call_omi(
-            "/v1/dev/user/conversations", method="POST", payload={"text": transcript_text}
+            "/v1/dev/user/conversations", method="POST", payload={"text": safe["raw_text"]}
         )
         conversation_id = conversation.get("id")
-        intent = self._extract_intent(transcript_text)
+        intent = self._extract_intent(safe["raw_text"])
 
         memory_id = None
         try:
             memory_payload = {
-                "content": f"[NEXUS FORGE] {transcript_text}",
+                "content": f"[NEXUS FORGE] {safe['raw_text']}",
                 "category": "manual",
                 "visibility": "private",
                 "tags": ["nexus-forge", intent.get("domain", "crisis_command")],
@@ -142,6 +164,12 @@ class OmiVoiceIngestionService:
             "conversation_id": conversation_id,
             "memory_id": memory_id,
             "intent": intent,
+            "guardrails": {
+                "sanitized": True,
+                "chars_before": safe["char_count"],
+                "injection_signals": safe["suspicious_injection_signals"],
+                "is_suspicious": safe["is_suspicious"],
+            },
         }
 
     async def _call_omi(
@@ -157,7 +185,7 @@ class OmiVoiceIngestionService:
             base = base[: -3]
         url = f"{base}{path}"
         headers = {"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}
-        async with httpx.AsyncClient(timeout=timeout) as client:
+        async with self._client(timeout) as client:
             resp = await client.request(method, url, json=payload, headers=headers)
         if resp.status_code >= 400:
             raise RuntimeError(f"Omi {method} {path} -> {resp.status_code}: {resp.text[:300]}")
@@ -242,19 +270,23 @@ class OmiVoiceIngestionService:
             "domain": domain,
             "entities": entities,
             "urgency": urgency,
-            "confidence": 0.97
+            "confidence": 0.60
         }
 
-    def _build_transcription_response(self, text: str, provider: str) -> Dict[str, Any]:
+    def _build_transcription_response(self, text: str, provider: str, verified: bool = False) -> Dict[str, Any]:
         intent = self._extract_intent(text)
         return {
             "status": "success",
             "transcription_id": f"omi_tx_{uuid.uuid4().hex[:8]}",
             "transcription": text,
-            "confidence": 0.98,
+            "transcription_verified": verified,
+            "confidence": 0.98 if verified else 0.30,
             "provider": provider,
             "audio_format": "16kHz Mono PCM / WebM",
             "extracted_intent": intent,
+            "warning": (None if verified else
+                       "Audio was not transcribed by a speech model. Text was synthesized from "
+                       "acoustic signal heuristics and is NOT a verbatim transcript of the audio."),
             "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat()
         }
 

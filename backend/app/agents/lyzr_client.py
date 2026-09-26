@@ -16,11 +16,19 @@ Documented endpoints used:
 Auth is provided via the `x-api-key` header (Lyzr v3 API key).
 """
 import uuid
+import hashlib
 import httpx
 import datetime
 from typing import Dict, Any, Optional, List, Callable
 
 from app.core.config import settings
+from app.core.costing import usage_register, UsageRecord, estimate_tokens, truncate_tokens
+from app.core.caching import llm_cache
+from app.core.prompt_guard import (
+    sanitize_untrusted_input,
+    build_grounding_system_prompt,
+    apply_no_fabrication_directive,
+)
 
 LYZR_BASE_URL = getattr(settings, "LYZR_BASE_URL", None) or "https://agent-prod.studio.lyzr.ai"
 
@@ -40,13 +48,29 @@ class LyzrClient:
     def __init__(self, api_key: Optional[str] = None, base_url: Optional[str] = None):
         self.api_key = api_key or settings.LYZR_API_KEY
         self.base_url = (base_url or LYZR_BASE_URL).rstrip("/")
+        self._shared_client: Optional[httpx.AsyncClient] = None
+
+    def _client(self) -> httpx.AsyncClient:
+        """Returns a lazily-created, reused AsyncClient (no per-request session churn)."""
+        if self._shared_client is None or self._shared_client.is_closed:
+            self._shared_client = httpx.AsyncClient(timeout=30.0)
+        return self._shared_client
+
+    def _record_usage(self, model: str, prompt_text: str, completion_text: str, source: str) -> None:
+        """Records deterministic token/cost estimates for one Lyzr call."""
+        usage_register.record(UsageRecord(
+            model=model,
+            prompt_tokens=estimate_tokens(prompt_text),
+            completion_tokens=estimate_tokens(completion_text),
+            source=source,
+        ))
 
     # ------------------------------------------------------------------
     # Low-level helpers
     # ------------------------------------------------------------------
     async def _get(self, path: str, timeout: float = 30.0) -> Dict[str, Any]:
         headers = {"x-api-key": self.api_key, "Content-Type": "application/json"}
-        async with httpx.AsyncClient(timeout=timeout) as client:
+        async with self._client() as client:
             resp = await client.get(f"{self.base_url}{path}", headers=headers)
         if resp.status_code >= 400:
             raise LyzrClientError(f"Lyzr API {path} -> {resp.status_code}: {resp.text[:300]}")
@@ -57,7 +81,7 @@ class LyzrClient:
 
     async def _post(self, path: str, payload: Dict[str, Any], timeout: float = 30.0) -> Dict[str, Any]:
         headers = {"x-api-key": self.api_key, "Content-Type": "application/json"}
-        async with httpx.AsyncClient(timeout=timeout) as client:
+        async with self._client() as client:
             resp = await client.post(f"{self.base_url}{path}", json=payload, headers=headers)
         if resp.status_code >= 400:
             raise LyzrClientError(f"Lyzr API {path} -> {resp.status_code}: {resp.text[:300]}")
@@ -119,14 +143,59 @@ class LyzrClient:
             raise LyzrClientError(f"Lyzr create_agent returned no agent_id: {data}")
         return agent_id
 
-    async def invoke_agent(self, agent_id: str, query: str, session_id: Optional[str] = None) -> Dict[str, Any]:
-        """Invokes a single agent by ID with a query (Lyzr inference endpoint)."""
+    async def invoke_agent(
+        self,
+        agent_id: str,
+        query: str,
+        session_id: Optional[str] = None,
+        context: Optional[str] = None,
+        max_tokens: int = 700,
+    ) -> Dict[str, Any]:
+        """Invokes a single agent by ID with a query (Lyzr inference endpoint).
+
+        `context` is real retrieved evidence (e.g. Qdrant memory excerpts) injected
+        as a grounding message so the LLM is anchored to known facts rather than left
+        to fabricate. `max_tokens` bounds spend per call (Pillar 01/02/04).
+
+        The query is treated as DATA (sanitized/escaped into delimited blocks) and a
+        no-fabrication contract is appended. Responses are TTL-cached by deterministic
+        key (Pillar 05/04).
+        """
+        safe = sanitize_untrusted_input(query)
+        user_text = apply_no_fabrication_directive(safe["raw_text"])
+        cache_part = context or ""
+        cache_key_parts = (agent_id, hashlib.sha256(cache_part.encode("utf-8")).hexdigest(), user_text[:500])
+
+        cached = llm_cache.get("lyzr_invoke", *cache_key_parts)
+        if cached is not None:
+            return cached
+
+        messages: List[Dict[str, str]] = []
+        if cache_part:
+            grounded_context = truncate_tokens(cache_part, settings.MAX_CONTEXT_TOKENS if hasattr(settings, "MAX_CONTEXT_TOKENS") else 1200)
+            messages.append({
+                "role": "system",
+                "content": build_grounding_system_prompt(grounded_context),
+            })
+        messages.append({"role": "user", "content": user_text})
         payload: Dict[str, Any] = {
-            "messages": [{"role": "user", "content": query}],
+            "messages": messages,
+            "max_tokens": min(int(max_tokens or 700), settings.MAX_RESPONSE_TOKENS if hasattr(settings, "MAX_RESPONSE_TOKENS") else 700),
         }
         if session_id:
             payload["session_id"] = session_id
-        return await self._post(f"/v3/inference/{agent_id}/generate_response/", payload, timeout=120.0)
+        result = await self._post(f"/v3/inference/{agent_id}/generate_response/", payload, timeout=120.0)
+
+        prompt_text = "\n".join(m["content"] for m in messages)
+        completion_text = ""
+        for key in ("answer", "output", "response", "content"):
+            val = result.get(key)
+            if isinstance(val, str):
+                completion_text = val
+                break
+        self._record_usage("gpt-4o-mini", prompt_text, completion_text, source="lyzr_live")
+        llm_cache.set("lyzr_invoke", result, *cache_key_parts)
+        return result
 
     # ------------------------------------------------------------------
     # Manager / orchestration
@@ -166,13 +235,16 @@ class LyzrClient:
         can route subtasks to specialist sub-agents. This is the primary mechanism for
         'supervisor delegates to specialized division' orchestration.
         """
+        safe = sanitize_untrusted_input(query)
         payload: Dict[str, Any] = {
-            "messages": [{"role": "user", "content": query}],
+            "messages": [{"role": "user", "content": apply_no_fabrication_directive(safe["raw_text"])}],
             "managed_agents": managed_agents,
         }
         if session_id:
             payload["session_id"] = session_id
-        return await self._post(f"/v3/inference/{manager_agent_id}/generate_response/", payload, timeout=120.0)
+        result = await self._post(f"/v3/inference/{manager_agent_id}/generate_response/", payload, timeout=120.0)
+        self._record_usage("gpt-4o", query, str(result), source="lyzr_manager")
+        return result
 
 
 lyzr_client = LyzrClient()

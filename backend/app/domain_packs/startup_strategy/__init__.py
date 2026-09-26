@@ -1,11 +1,10 @@
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from app.domain_packs.base import BaseDomainPack, DomainRiskFactor, WorkflowTaskTemplate
 from app.domain_packs.startup_strategy.config import DOMAIN_ID, DISPLAY_NAME, DESCRIPTION, ICON, DEFAULT_CAPABILITIES
 from app.domain_packs.startup_strategy.agents import get_startup_strategy_agents
 from app.domain_packs.startup_strategy.workflow import generate_startup_strategy_workflow
 from app.domain_packs.startup_strategy.schemas import StartupStrategyReportSchema
 from app.domain_packs.startup_strategy.output import build_startup_strategy_executive_report
-from app.domain_packs.scenario_analyzer import scenario_analyzer
 
 class StartupStrategyPack(BaseDomainPack):
     domain_id = DOMAIN_ID
@@ -34,95 +33,28 @@ class StartupStrategyPack(BaseDomainPack):
         return StartupStrategyReportSchema.model_json_schema()
 
     def get_simulation_strategies(self, mission_context: Dict[str, Any]) -> List[Dict[str, Any]]:
-        prompt = mission_context.get("prompt", "")
-        analysis = scenario_analyzer.analyze_startup_scenario(prompt)
-        plans = analysis.get("alternative_strategies", [])
-
-        if len(plans) >= 3:
-            p_a, p_b, p_c = plans[0], plans[1], plans[2]
-            return [
-                {
-                    "id": "PLAN_A",
-                    "title": p_a.get("plan", "Plan A: Defensive Austere Mode"),
-                    "success_likelihood": 0.62,
-                    "risk_score": 0.55,
-                    "estimated_time_mins": 10,
-                    "cost_usd": 0,
-                    "recommended": False,
-                    "methodology": "HEURISTIC_SIMULATION",
-                    "explanation": p_a.get("estimated_impact", "High execution risk; potential disruption to core product velocity.")
-                },
-                {
-                    "id": "PLAN_B",
-                    "title": p_b.get("plan", "Plan B: High-Leverage Strategic Pivot & Focus"),
-                    "success_likelihood": 0.92,
-                    "risk_score": 0.12,
-                    "estimated_time_mins": 25,
-                    "cost_usd": 45000,
-                    "recommended": True,
-                    "methodology": "HISTORICAL_COMPARISON",
-                    "explanation": p_b.get("estimated_impact", "Optimal survival and growth profile balancing execution speed with risk insulation.")
-                },
-                {
-                    "id": "PLAN_C",
-                    "title": p_c.get("plan", "Plan C: Alternative Strategic M&A or Niche Realignment"),
-                    "success_likelihood": 0.58,
-                    "risk_score": 0.65,
-                    "estimated_time_mins": 60,
-                    "cost_usd": 15000,
-                    "recommended": False,
-                    "methodology": "AGENT_ESTIMATION",
-                    "explanation": p_c.get("estimated_impact", "Prolonged execution window with elevated external dependency risk.")
-                }
-            ]
-
-        return [
-            {
-                "id": "PLAN_A",
-                "title": "Plan A: Immediate Headcount & Marketing Burn Freeze",
-                "success_likelihood": 0.62,
-                "risk_score": 0.55,
-                "estimated_time_mins": 10,
-                "cost_usd": 0,
-                "recommended": False,
-                "methodology": "HEURISTIC_SIMULATION",
-                "explanation": "Extends immediate runway but slows engineering output."
-            },
-            {
-                "id": "PLAN_B",
-                "title": "Plan B: Strategic Realignment & Lean High-Value Pivot",
-                "success_likelihood": 0.92,
-                "risk_score": 0.11,
-                "estimated_time_mins": 30,
-                "cost_usd": 35000,
-                "recommended": True,
-                "methodology": "HISTORICAL_COMPARISON",
-                "explanation": "Balances rapid cost optimization with upfront cashflow collection."
-            },
-            {
-                "id": "PLAN_C",
-                "title": "Plan C: Strategic Partnership / Acqui-Hire Evaluation",
-                "success_likelihood": 0.54,
-                "risk_score": 0.68,
-                "estimated_time_mins": 90,
-                "cost_usd": 15000,
-                "recommended": False,
-                "methodology": "AGENT_ESTIMATION",
-                "explanation": "Long closing timeline with deal execution risks."
-            }
-        ]
+        """Stochastic Monte-Carlo strategy comparison computed from the shared engine."""
+        from app.orchestration.simulation_engine import simulation_engine
+        return simulation_engine.simulate_strategies(
+            mission_type="startup_strategy",
+            domain_id=DOMAIN_ID,
+            mission_context=mission_context,
+        )
 
     def get_debate_template(self, prompt: str) -> Dict[str, Any]:
-        analysis = scenario_analyzer.analyze_startup_scenario(prompt)
-        rec = analysis.get("recommended_strategy", "PLAN_B: Strategic Focus")
-        
+        from app.agents.llm_reasoning import llm_reasoning_engine
+        delib = llm_reasoning_engine.generate_parliament_deliberation_sync(prompt, [])
+        score = delib.get("consensus_score") or 0.90
         return {
             "motion": f"Which strategy should be executed for: '{prompt[:60]}'?",
-            "selected_strategy": rec,
-            "consensus_score": 0.92,
-            "reasoning_summary": analysis.get("why_this_strategy", "Optimal balance between runway extension and business value creation."),
-            "supporting_agents": ["Venture Strategy Lead", "Financial Analyst", "Product Lead", "Market Strategist"],
-            "dissenting_agents": analysis.get("dissenting_opinions", ["Growth Specialist (urged continuing top-of-funnel testing)"])
+            "selected_strategy": delib.get("selected_strategy") or "PLAN_B_STRATEGIC_REALIGNMENT",
+            "consensus_score": round(float(score), 3),
+            "reasoning_summary": delib.get("reasoning_summary") or "Consensus reached via parametric deliberation. No fabricated figures.",
+            "supporting_agents": delib.get("supporting_agents") or [],
+            "dissenting_agents": delib.get("dissenting_agents") or [],
+            "provider": delib.get("provider") or "Dynamic Parametric Engine",
+            "source": "prompt_parametric_estimate",
+            "is_estimate": True,
         }
 
     def get_sample_scenarios(self) -> List[Dict[str, Any]]:
@@ -144,6 +76,7 @@ class StartupStrategyPack(BaseDomainPack):
         consensus: Dict[str, Any],
         selected_strategy: str,
         simulations: List[Dict[str, Any]],
-        agent_findings: List[Dict[str, Any]]
+        agent_findings: List[Dict[str, Any]],
+        evidence: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
-        return build_startup_strategy_executive_report(prompt, consensus, selected_strategy, simulations, agent_findings)
+        return build_startup_strategy_executive_report(prompt, consensus, selected_strategy, simulations, agent_findings, evidence)

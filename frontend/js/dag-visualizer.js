@@ -83,8 +83,8 @@ class DagVisualizerEngine {
 
   getNodesForScenario(promptText) {
     return [
-      { id: 'CRISIS_DETECTED', label: 'Omi Voice Ingestion', category: 'TRIGGER', state: 'success', x: 130, y: 260, agent: 'Omi Voice Stream', confidence: '100%', time: '12ms', findings: 'Acoustic voice frames ingested and transcribed by Omi engine.' },
-      { id: 'MISSION_ANALYSIS', label: 'Mission Analysis', category: 'COMMAND', state: 'success', x: 410, y: 260, agent: 'NEXUS Commander', confidence: '98%', time: '85ms', findings: 'Domain requirements decomposed into parallel DAG capabilities.' },
+      { id: 'CRISIS_DETECTED', label: 'Omi Voice Ingestion', category: 'TRIGGER', state: 'success', x: 130, y: 260, agent: 'Omi Voice Stream', confidence: '—', time: '—', findings: 'Acoustic voice frames ingested and transcribed by Omi engine.' },
+      { id: 'MISSION_ANALYSIS', label: 'Mission Analysis', category: 'COMMAND', state: 'success', x: 410, y: 260, agent: 'NEXUS Commander', confidence: '—', time: '—', findings: 'Domain requirements decomposed into parallel DAG capabilities.' },
       { id: 'QDRANT_RAG', label: 'Qdrant Vector Memory RAG', category: 'QDRANT', state: 'pending', x: 710, y: 100, agent: 'Qdrant Vector DB', confidence: '-', time: '-', findings: 'Pending vector retrieval.' },
       { id: 'INCIDENT_ANALYSIS', label: 'Incident Root Cause Analysis', category: 'AGENT', state: 'pending', x: 710, y: 200, agent: 'Root Cause Specialist', confidence: '-', time: '-', findings: 'Pending agent task execution.' },
       { id: 'IMPACT_ASSESSMENT', label: 'Infrastructure & Impact Assessment', category: 'AGENT', state: 'pending', x: 710, y: 300, agent: 'Infrastructure Specialist', confidence: '-', time: '-', findings: 'Pending agent task execution.' },
@@ -162,7 +162,7 @@ class DagVisualizerEngine {
         node.time = defaultTimes[node.id] || '240ms';
       }
       if (!node.confidence || node.confidence === '-') {
-        node.confidence = '98%';
+        node.confidence = 'N/A';
       }
       if (!node.findings || node.findings.includes('Pending')) {
         node.findings = `Successfully executed and verified via Lyzr solo agent swarm. Vector memory synced with Qdrant.`;
@@ -324,8 +324,8 @@ class DagVisualizerEngine {
       badgeEl.className = `inspector-badge ${node.state}`;
     }
     if (agentEl) agentEl.innerText = node.agent;
-    if (timeEl) timeEl.innerText = node.time || '180ms';
-    if (confEl) confEl.innerText = node.confidence || '98%';
+    if (timeEl) timeEl.innerText = node.time || '—';
+    if (confEl) confEl.innerText = node.confidence || '—';
     if (reasonEl) reasonEl.innerText = node.findings || "Telemetry payload synced with Qdrant vector memory.";
 
     drawer.classList.add('active');
@@ -535,7 +535,7 @@ class DagVisualizerEngine {
     this.ctx.fillStyle = '#475569';
     this.ctx.font = '500 8px "JetBrains Mono", monospace';
     this.ctx.textAlign = 'left';
-    this.ctx.fillText(node.confidence || '98%', x + 10, by + badgeH / 2);
+    this.ctx.fillText(node.confidence || '—', x + 10, by + badgeH / 2);
 
     this.ctx.textBaseline = 'alphabetic';
 

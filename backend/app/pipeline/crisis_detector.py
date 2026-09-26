@@ -101,7 +101,7 @@ class CrisisEngine:
         is_crisis = bool(reasons) and crisis_score >= 0.35
 
         priority = "P1" if is_crisis and crisis_score >= 0.60 else ("P2" if is_crisis else "P3")
-        final_confidence = round(max(confidence, crisis_score if is_crisis else 0.4), 2)
+        final_confidence = round(max(confidence, crisis_score), 2)
 
         return {
             "incident": incident,

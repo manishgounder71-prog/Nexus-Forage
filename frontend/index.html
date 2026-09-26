@@ -75,11 +75,11 @@
         <!-- Live Telemetry HUD -->
         <div id="telemetry-latency" class="telemetry-pill-hud" title="Real-time Pipeline Latency" style="display:flex; align-items:center; gap:4px; background:rgba(255,255,255,0.03); padding:4px 8px; border-radius:var(--radius-sm); border:1px solid var(--border-glass); font-size:0.7rem; font-family:var(--font-mono);">
           <i class="fa-solid fa-bolt" style="color:#f59e0b;"></i>
-          <span id="telemetry-latency-val">28ms</span>
+          <span id="telemetry-latency-val">--ms</span>
         </div>
         <div id="telemetry-consensus" class="telemetry-pill-hud" title="Swarm Consensus Index" style="display:flex; align-items:center; gap:4px; background:rgba(255,255,255,0.03); padding:4px 8px; border-radius:var(--radius-sm); border:1px solid var(--border-glass); font-size:0.7rem; font-family:var(--font-mono);">
           <i class="fa-solid fa-scale-balanced" style="color:#10b981;"></i>
-          <span id="telemetry-consensus-val">95.4%</span>
+          <span id="telemetry-consensus-val">--%</span>
         </div>
 
         <!-- Action Buttons -->
@@ -190,15 +190,15 @@
 
             <div class="metric-card">
               <span class="metric-title">Team Agreement Level</span>
-              <span class="metric-value" id="telemetry-consensus">94.8%</span>
+              <span class="metric-value" id="telemetry-consensus">--%</span>
               <div class="metric-progress-bar">
-                <div class="progress-fill" style="width: 94.8%;"></div>
+                <div class="progress-fill" id="telemetry-consensus-fill" style="width: 0%;"></div>
               </div>
             </div>
 
             <div class="metric-card">
               <span class="metric-title">AI Processing Speed</span>
-              <span class="metric-value">284 t/s</span>
+              <span class="metric-value" id="telemetry-speed">-- t/s</span>
               <span class="metric-sub">All AI Agents Running Simultaneously</span>
             </div>
           </div>
@@ -319,7 +319,7 @@
             <div class="feed-item">
               <span class="feed-time">21:47:02</span>
               <span class="feed-tag memory">QDRANT</span>
-              <p class="feed-text">Loaded 14,290 past crisis records into memory database.</p>
+              <p class="feed-text">Standing by — awaiting incident signals for Qdrant vector retrieval.</p>
             </div>
           </div>
         </aside>
@@ -624,7 +624,7 @@
           <div class="rt-metric-card">
             <div class="rt-metric-header">
               <span class="rt-metric-label">ATTACK RESILIENCE SCORE</span>
-              <span class="rt-metric-badge good" id="rt-resilience-badge">+152% HARDENED</span>
+              <span class="rt-metric-badge good" id="rt-resilience-badge">--/100 HARDENING</span>
             </div>
             <div class="rt-metric-comparison">
               <div class="comp-col danger">
