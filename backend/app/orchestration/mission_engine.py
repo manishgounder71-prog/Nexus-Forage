@@ -434,7 +434,9 @@ class MasterMissionEngine:
 
         summary = {
             "mission_id": mission_id,
+            "raw_prompt": raw_prompt,
             "status": "COMPLETED",
+            "title": f"{pack.display_name} Mission",
             "domain": primary_domain,
             "domain_pack": pack.display_name,
             "confidence": confidence,

@@ -213,6 +213,10 @@ async def export_mission_dossier(mission_id: str):
         consensus_score = consensus_scores[0] if consensus_scores else None
 
     concluded = bool(resolutions) or bool(consensus_score)
+    consensus_text = (
+        f"Consensus score: {consensus_score:.3f} " if consensus_score is not None
+        else "No consensus score recorded. "
+    )
 
     dossier = {
         "dossier_id": f"dos_{mission_id}_{int(datetime.datetime.now(datetime.timezone.utc).timestamp())}",
@@ -231,7 +235,7 @@ async def export_mission_dossier(mission_id: str):
             "rounds_held": len(deliberations),
             "dissenting_views_recorded": len([d for d in deliberations if "DISSENT" in d.get("event_type", "")]),
             "consensus_outcome": (
-                f"Consensus reached. Consensus score: {consensus_score:.3f} "
+                f"Consensus reached. {consensus_text}"
                 f"(model-derived score, not a human agreement percentage)."
                 if concluded else "In progress — no resolved decision on record."
             )
