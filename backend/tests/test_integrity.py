@@ -205,6 +205,26 @@ class TestReportFactory(unittest.TestCase):
         self.assertTrue(report["fabrication_policy"]["no_invented_claims"])
         self.assertIn("evidence_sources", report)
 
+    def test_ledger_survives_none_style_agent_results(self):
+        # Production-provenance guard: agent/consensus/simulation entries must not
+        # crash report construction if a component returns None.
+        ledger = report_factory.assemble_evidence_ledger(
+            consensus=None,
+            simulations=[None, {"id": "PLAN_B", "recommended": True, "success_likelihood": 0.9}],
+            agent_findings=[None, {"task_name": "found_it", "deliverable": "ok"}],
+            evidence={"memory_refs": [None, {"memory_id": "m1", "similarity_score": 0.9, "content": "c"}]},
+        )
+        self.assertEqual(len(ledger["agent_findings"]), 1)
+        self.assertEqual(ledger["simulation"]["plan_id"], "PLAN_B")
+        self.assertEqual(len(ledger["memory_evidence"]), 1)
+        report = report_factory.assemble_executive_report(
+            situation="S.", consensus=None, selected_strategy="",
+            simulations=[None, {"id": "PLAN_B", "recommended": True, "success_likelihood": 0.9}],
+            agent_findings=[None], evidence=None,
+            profile={"title": "T", "domain": "D"},
+        )
+        self.assertIn("fabrication_policy", report)
+
 
 if __name__ == "__main__":
     unittest.main()

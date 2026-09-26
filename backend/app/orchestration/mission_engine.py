@@ -293,6 +293,7 @@ class MasterMissionEngine:
 
             # Inter-agent evidence message: confidence comes from the REAL execution
             # result rather than a hardcoded constant.
+            res = res if isinstance(res, dict) else {}
             msg_confidence = res.get("confidence") if isinstance(res.get("confidence"), (int, float)) else 0.5
             communicator.send_message(
                 from_agent=agent.agent_id,
@@ -317,8 +318,8 @@ class MasterMissionEngine:
         mark("dag")
 
         # 9. Disagreement Detection
-        disagreement_info = self._get_domain_disagreement(primary_domain, raw_prompt)
-        await emit("AGENT_DISAGREEMENT", "DISAGREEMENT", f"⚠ AGENT DISAGREEMENT DETECTED: {disagreement_info['topic']}", disagreement_info)
+        disagreement_info = self._get_domain_disagreement(primary_domain, raw_prompt) or {}
+        await emit("AGENT_DISAGREEMENT", "DISAGREEMENT", f"⚠ AGENT DISAGREEMENT DETECTED: {disagreement_info.get('topic', 'No conflict topic resolved')}", disagreement_info)
         await asyncio.sleep(self._pace(0.3))
 
         # 10-12. Parliament Deliberation, Red-Team Audit and Monte-Carlo Simulation are
@@ -360,7 +361,7 @@ class MasterMissionEngine:
         mark("simulation")
 
         # 13. Executive Mission Command Report (evidence-driven contract, Pillar 02/03)
-        agent_findings = list(dag_results["results"].values()) if "results" in dag_results else []
+        agent_findings = [r for r in dag_results["results"].values() if isinstance(r, dict)] if "results" in dag_results else []
         evidence = {
             "mem_context": mem_context,
             "similar_incidents": similar_incidents,
@@ -368,14 +369,31 @@ class MasterMissionEngine:
             "red_team_info": red_team_info,
             "disagreement_info": disagreement_info,
         }
-        executive_report = pack.generate_executive_report(
-            prompt=raw_prompt,
-            consensus=consensus,
-            selected_strategy=consensus["selected_strategy"],
-            simulations=sim_results,
-            agent_findings=agent_findings,
-            evidence=evidence
-        )
+        try:
+            executive_report = pack.generate_executive_report(
+                prompt=raw_prompt,
+                consensus=consensus,
+                selected_strategy=consensus.get("selected_strategy") if isinstance(consensus, dict) else "PLAN_B_DYNAMIC_CONTAINMENT",
+                simulations=sim_results,
+                agent_findings=agent_findings,
+                evidence=evidence
+            )
+        except Exception as report_e:
+            # Never let a report-construction failure kill the mission: fall back to
+            # the evidence-only factory and surface the error for operators.
+            import traceback as _tb
+            _tb.print_exc()
+            from app.domain_packs.report_factory import assemble_executive_report
+            executive_report = assemble_executive_report(
+                situation=raw_prompt,
+                consensus=consensus if isinstance(consensus, dict) else {},
+                selected_strategy=consensus.get("selected_strategy") if isinstance(consensus, dict) else "PLAN_B_DYNAMIC_CONTAINMENT",
+                simulations=sim_results,
+                agent_findings=agent_findings,
+                evidence=evidence,
+                profile={"title": "AUTONOMOUS CRISIS RESPONSE REPORT", "domain": primary_domain, "severity": "CRITICAL INCIDENT"},
+            )
+            executive_report["report_construction_error"] = str(report_e)
         await emit("EXECUTIVE_REPORT", "REPORT", f"Executive Mission Command Report generated for {pack.display_name}.", executive_report)
         await asyncio.sleep(self._pace(0.3))
         mark("report")
@@ -633,6 +651,7 @@ class MasterMissionEngine:
             return await self.execute_mission_pipeline(mission_id, raw_prompt, event_broadcaster, organization_id)
         except Exception as e:
             import traceback
+            tb_text = traceback.format_exc()
             traceback.print_exc()
             print(f"[MissionEngine] Mission {mission_id} failed: {e}")
             seq = len(self.mission_event_logs.get(mission_id, [])) + 1
@@ -644,7 +663,7 @@ class MasterMissionEngine:
                 "stage": "FAILURE",
                 "message": f"Mission execution failed: {e}",
                 "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-                "data": {"error": str(e), "partial": True}
+                "data": {"error": str(e), "partial": True, "traceback": tb_text[-3000:]}
             }
             self.mission_event_logs.setdefault(mission_id, []).append(failed_event)
             if event_broadcaster:

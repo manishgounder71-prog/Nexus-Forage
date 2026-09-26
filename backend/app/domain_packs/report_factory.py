@@ -13,10 +13,14 @@ from typing import Dict, Any, List, Optional
 def _sim_plan(simulations: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
     if not simulations:
         return None
+    first: Optional[Dict[str, Any]] = None
     for s in simulations:
-        if s.get("recommended"):
-            return s
-    return simulations[0]
+        if isinstance(s, dict):
+            if s.get("recommended"):
+                return s
+            if first is None:
+                first = s
+    return first
 
 
 def assemble_evidence_ledger(
@@ -29,7 +33,7 @@ def assemble_evidence_ledger(
     ledger: Dict[str, Any] = {"consensus": {}, "simulation": {}, "agent_findings": [], "memory_evidence": [], "empty": True}
 
     # Consensus facts (from live deliberation / dynamic parametric engine)
-    consensus = consensus or {}
+    consensus = consensus if isinstance(consensus, dict) else {}
     consensus_score = consensus.get("consensus_score")
     ledger["consensus"] = {
         "selected_strategy": consensus.get("selected_strategy"),
@@ -43,6 +47,8 @@ def assemble_evidence_ledger(
 
     # Simulation facts (real stochastic Monte-Carlo outputs)
     plan = _sim_plan(simulations or [])
+    if plan:
+        plan = plan if isinstance(plan, dict) else {}
     if plan:
         ledger["simulation"] = {
             "plan_id": plan.get("id"),
@@ -63,6 +69,8 @@ def assemble_evidence_ledger(
     # Agent findings (real delivered outputs, with provenance labels)
     findings = []
     for f in (agent_findings or []):
+        if not isinstance(f, dict):
+            continue  # no usable evidence in a null/primitive result
         findings.append({
             "agent": f.get("executed_by") or f.get("agent_name") or f.get("agent_id"),
             "task": f.get("task_name"),
@@ -76,6 +84,7 @@ def assemble_evidence_ledger(
     # Memory evidence (retrieved Qdrant passages, provenance-labeled)
     memory_refs: List[Dict[str, Any]] = []
     raw = (evidence or {}).get("memory_refs") or []
+    raw = [r for r in raw if isinstance(r, dict)]
     seen = set()
     for r in sorted(raw, key=lambda x: float(x.get("similarity_score") or 0.0), reverse=True):
         mid = r.get("memory_id") or r.get("ref_id")
